@@ -50,12 +50,12 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ href: null }} />
 
       <Tabs.Screen
-        name="birds"
+        name="kutuphane"
         options={{
           title: "Kütüphane",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons
-              name={focused ? "bird" : "bird"}
+              name="book-open-variant"
               size={30}
               color={color}
             />
@@ -94,6 +94,7 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen name="profil" options={{ href: null }} />
+      <Tabs.Screen name="birds" options={{ href: null }} />
       <Tabs.Screen name="checklist" options={{ href: null }} />
       <Tabs.Screen name="incubation" options={{ href: null }} />
       <Tabs.Screen name="lineage" options={{ href: null }} />

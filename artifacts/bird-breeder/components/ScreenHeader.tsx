@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 
-export type SectionKey = "checklist" | "birds" | "incubation";
+export type SectionKey = "checklist" | "birds" | "incubation" | "kutuphane";
 
 const TABS: { key: SectionKey; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; route: string }[] = [
   { key: "checklist", label: "Haftalık Rutin", icon: "calendar-check", route: "/(tabs)/checklist" },
@@ -15,7 +15,7 @@ const TABS: { key: SectionKey; label: string; icon: keyof typeof MaterialCommuni
   { key: "incubation", label: "Kuluçka", icon: "egg-outline", route: "/(tabs)/incubation" },
 ];
 
-export function ScreenHeader({ active }: { active: SectionKey }) {
+export function ScreenHeader({ active }: { active?: SectionKey }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
 

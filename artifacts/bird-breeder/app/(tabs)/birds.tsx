@@ -41,42 +41,65 @@ const SPECIES_OPTIONS = [
   "Diğer",
 ];
 
-async function pickImage(source: "camera" | "gallery"): Promise<string | null> {
+async function pickFromGallery(): Promise<string | null> {
   try {
-    if (source === "camera") {
-      if (Platform.OS === "web") {
-        Alert.alert("Uyarı", "Kamera web tarayıcısında desteklenmez. Galeri kullanın.");
-        return null;
-      }
-      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "İzin Gerekli",
-          canAskAgain
-            ? "Kamera kullanmak için izin vermeniz gerekiyor."
-            : "Kamera iznini Ayarlar uygulamasından açmanız gerekiyor."
-        );
-        return null;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true, aspect: [1, 1], quality: 0.8,
-      });
-      if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("İzin Gerekli", "Fotoğraf kitaplığına erişmek için izin gerekiyor.");
-        return null;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.8,
-      });
-      if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("İzin Gerekli", "Fotoğraf kitaplığına erişmek için izin gerekiyor.");
+      return null;
     }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
   } catch (_) {
-    Alert.alert("Hata", "Fotoğraf seçilirken bir hata oluştu.");
+    Alert.alert("Hata", "Galeri açılırken bir hata oluştu.");
   }
   return null;
+}
+
+async function pickImage(source: "camera" | "gallery"): Promise<string | null> {
+  if (source === "gallery") return pickFromGallery();
+
+  // Camera path with robust permission handling + gallery fallback
+  if (Platform.OS === "web") {
+    Alert.alert("Uyarı", "Kamera web tarayıcısında desteklenmez. Galeri açılıyor...");
+    return pickFromGallery();
+  }
+  try {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== "granted") {
+      return new Promise((resolve) => {
+        Alert.alert(
+          "Kamera İzni Yok",
+          perm.canAskAgain
+            ? "Kamera izni verilmedi. Galeriyi kullanmak ister misiniz?"
+            : "Kamera iznini Ayarlar'dan açabilirsiniz. Şimdi galeriyi açayım mı?",
+          [
+            { text: "İptal", style: "cancel", onPress: () => resolve(null) },
+            { text: "Galeriyi Aç", onPress: async () => resolve(await pickFromGallery()) },
+          ]
+        );
+      });
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+    return null;
+  } catch (err) {
+    // Camera failed (no hardware, simulator, etc) → automatic gallery fallback
+    return new Promise((resolve) => {
+      Alert.alert(
+        "Kamera Açılamadı",
+        "Kamera başlatılamadı. Onun yerine galeriden seçmek ister misin?",
+        [
+          { text: "İptal", style: "cancel", onPress: () => resolve(null) },
+          { text: "Galeriyi Aç", onPress: async () => resolve(await pickFromGallery()) },
+        ]
+      );
+    });
+  }
 }
 
 function showImageSourcePicker(onPick: (uri: string) => void) {
@@ -101,35 +124,78 @@ function showImageSourcePicker(onPick: (uri: string) => void) {
   }
 }
 
-function shareViaWhatsApp(bird: Bird, birds: Bird[]) {
+async function shareViaWhatsApp(bird: Bird, birds: Bird[]) {
   const father = birds.find((b) => b.id === bird.fatherId);
   const mother = birds.find((b) => b.id === bird.motherId);
   const lineage = [father && `Baba: ${father.name}`, mother && `Anne: ${mother.name}`]
     .filter(Boolean)
     .join(" | ");
 
+  const displayName = bird.name?.trim() ? bird.name : `Kuş #${bird.id.slice(-6)}`;
   const msg = [
-    `*${bird.name}*`,
+    `*${displayName}*`,
     `Tür: ${bird.species || "—"}`,
     `Irk: ${bird.breed || "—"}`,
     `Halka No: ${bird.ringNo || "—"}`,
     `Cinsiyet: ${bird.gender === "male" ? "Erkek" : bird.gender === "female" ? "Dişi" : "Bilinmiyor"}`,
     lineage ? `Soy: ${lineage}` : null,
     bird.notes ? `Not: ${bird.notes}` : null,
+    "",
+    "Bu kuş kartı Kümesim uygulamasıyla oluşturulmuştur",
   ]
-    .filter(Boolean)
+    .filter((line) => line !== null)
     .join("\n");
 
+  // If bird has photo, try to share image with caption via system share sheet
+  if (bird.imageUri && Platform.OS !== "web") {
+    try {
+      const Sharing = await import("expo-sharing");
+      const available = await Sharing.isAvailableAsync();
+      if (available) {
+        await Sharing.shareAsync(bird.imageUri, {
+          mimeType: "image/jpeg",
+          dialogTitle: "WhatsApp ile Paylaş",
+          UTI: "public.jpeg",
+        });
+        // After image share, also offer to send caption text via WhatsApp
+        const waUrl = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+        const supported = await Linking.canOpenURL(waUrl);
+        if (supported) await Linking.openURL(waUrl);
+        return;
+      }
+    } catch (_) {
+      // fall through to text-only
+    }
+  }
+
   const url = `whatsapp://send?text=${encodeURIComponent(msg)}`;
-  Linking.canOpenURL(url).then((supported) => {
+  try {
+    const supported = await Linking.canOpenURL(url);
     if (supported) {
-      Linking.openURL(url);
+      await Linking.openURL(url);
     } else {
       Alert.alert("WhatsApp Bulunamadı", "WhatsApp yüklü değil. Mesajı kopyalayabilirsiniz.", [
         { text: "Tamam" },
       ]);
     }
-  });
+  } catch (_) {
+    Alert.alert("Paylaşım Hatası", "Paylaşım başlatılamadı.");
+  }
+}
+
+// Returns true if the two birds share at least one parent (siblings)
+function areRelated(birds: Bird[], aId: string, bId: string): boolean {
+  if (!aId || !bId || aId === bId) return false;
+  const a = birds.find((x) => x.id === aId);
+  const b = birds.find((x) => x.id === bId);
+  if (!a || !b) return false;
+  // Direct parent-child relation
+  if (a.fatherId === b.id || a.motherId === b.id) return true;
+  if (b.fatherId === a.id || b.motherId === a.id) return true;
+  // Sibling: share at least one parent
+  if (a.fatherId && (a.fatherId === b.fatherId)) return true;
+  if (a.motherId && (a.motherId === b.motherId)) return true;
+  return false;
 }
 
 function BirdCard({
@@ -866,7 +932,7 @@ function BirdEditModal({
 
             {males.length > 0 && (
               <>
-                <Text style={styles.label}>Baba</Text>
+                <Text style={styles.label}>Baba Seç</Text>
                 <View style={styles.chipRow}>
                   {males.map((m) => (
                     <Pressable
@@ -896,7 +962,7 @@ function BirdEditModal({
 
             {females.length > 0 && (
               <>
-                <Text style={styles.label}>Anne</Text>
+                <Text style={styles.label}>Anne Seç</Text>
                 <View style={styles.chipRow}>
                   {females.map((f) => (
                     <Pressable
@@ -916,12 +982,37 @@ function BirdEditModal({
                           { color: motherId === f.id ? "#ec4899" : colors.mutedForeground },
                         ]}
                       >
-                        {f.name}
+                        {f.name?.trim() ? f.name : `Kuş #${f.id.slice(-6)}`}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
               </>
+            )}
+
+            {fatherId && motherId && areRelated(birds, fatherId, motherId) && (
+              <View style={{
+                backgroundColor: "#FEF2F2",
+                borderWidth: 1,
+                borderColor: "#FCA5A5",
+                borderRadius: 12,
+                padding: 12,
+                marginTop: 12,
+                flexDirection: "row",
+                gap: 10,
+                alignItems: "flex-start",
+              }}>
+                <Ionicons name="warning" size={20} color="#DC2626" />
+                <Text style={{
+                  flex: 1,
+                  color: "#991B1B",
+                  fontFamily: "Inter_600SemiBold",
+                  fontSize: 13,
+                  lineHeight: 18,
+                }}>
+                  Akraba eşleşmesi! Sakat yavru riski olabilir.
+                </Text>
+              </View>
             )}
 
             <Text style={styles.label}>Notlar</Text>

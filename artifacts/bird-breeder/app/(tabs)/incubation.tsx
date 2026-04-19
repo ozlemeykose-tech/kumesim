@@ -15,6 +15,7 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { IncubationBatch, SPECIES_LIST, useIncubation } from "@/context/IncubationContext";
+import { useBirds } from "@/context/BirdsContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 
@@ -47,9 +48,50 @@ function ProgressBar({ progress, color }: { progress: number; color: string }) {
 function BatchCard({ batch }: { batch: IncubationBatch }) {
   const colors = useColors();
   const { updateBatch, deleteBatch, getDaysRemaining, getProgress, getTurkishStatus } = useIncubation();
+  const { birds, addBird, canAddBird } = useBirds();
   const progress = getProgress(batch);
   const daysLeft = getDaysRemaining(batch);
   const turkishStatus = getTurkishStatus(batch);
+
+  const expectedHatchDate = (() => {
+    const start = new Date(batch.startDate);
+    const end = new Date(start);
+    end.setDate(end.getDate() + batch.incubationDays);
+    return end.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+  })();
+
+  const handleAddChickToBirds = async () => {
+    if (!canAddBird) {
+      Alert.alert("Limit Doldu", "En fazla 25 kuş eklenebilir.");
+      return;
+    }
+    // Auto-link likely parents: first male and first female of same species
+    const sameSpecies = birds.filter((b) => b.species === batch.species);
+    const father = sameSpecies.find((b) => b.gender === "male");
+    const mother = sameSpecies.find((b) => b.gender === "female");
+
+    const result = await addBird({
+      name: `${batch.birdName} yavrusu`,
+      ringNo: "",
+      breed: "",
+      species: batch.species,
+      gender: "unknown",
+      fatherId: father?.id,
+      motherId: mother?.id,
+      imageUri: undefined,
+      notes: `${batch.species} - ${new Date().toLocaleDateString("tr-TR")} tarihinde kuluçkadan çıktı.`,
+    });
+
+    if (result.success) {
+      const linked = father || mother
+        ? `\nEbeveynler: ${father?.name || "—"} / ${mother?.name || "—"}`
+        : "\nEbeveynleri 'Kuşlarım' ekranından atayabilirsiniz.";
+      Alert.alert("Yavru Eklendi 🐣", `Yeni yavru 'Kuşlarım' listene eklendi!${linked}`);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Alert.alert("Hata", result.reason || "Yavru eklenemedi.");
+    }
+  };
   const statusColor =
     batch.status === "hatched"
       ? "#22c55e"
@@ -217,8 +259,59 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
           <Text style={styles.pctText}>{pct}%</Text>
         </View>
 
+        <View style={{
+          backgroundColor: "#E8F1EC",
+          borderRadius: 10,
+          padding: 10,
+          marginBottom: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <Ionicons name="calendar" size={16} color="#2D7A4F" />
+          <View style={{ flex: 1 }}>
+            <Text style={{
+              fontSize: 11,
+              color: "#5A7066",
+              fontFamily: "Inter_500Medium",
+              marginBottom: 1,
+            }}>Tahmini Çıkım Tarihi</Text>
+            <Text style={{
+              fontSize: 14,
+              color: "#1B5E37",
+              fontFamily: "Inter_700Bold",
+              fontWeight: "700",
+            }}>{expectedHatchDate}</Text>
+          </View>
+        </View>
+
+        {batch.status === "hatched" && (
+          <Pressable
+            style={({ pressed }) => [{
+              backgroundColor: "#2D7A4F",
+              borderRadius: 12,
+              paddingVertical: 12,
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
+              marginBottom: 12,
+            }, pressed && { opacity: 0.85 }]}
+            onPress={handleAddChickToBirds}
+          >
+            <MaterialCommunityIcons name="bird" size={18} color="#FFFFFF" />
+            <Text style={{
+              color: "#FFFFFF",
+              fontSize: 14,
+              fontWeight: "700",
+              fontFamily: "Inter_700Bold",
+              letterSpacing: 0.4,
+            }}>KUŞLARIMA EKLE</Text>
+          </Pressable>
+        )}
+
         <View style={styles.footer}>
-          <Text style={styles.startDate}>Baslangic: {startDate}</Text>
+          <Text style={styles.startDate}>Başlangıç: {startDate}</Text>
           <Pressable style={styles.deleteBtn} onPress={handleDelete}>
             <Ionicons name="trash-outline" size={18} color={colors.destructive} />
           </Pressable>
