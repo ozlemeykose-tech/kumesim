@@ -25,3 +25,25 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Artifacts
+
+### AvianNest (Bird Breeder App)
+- **Type**: Expo (React Native) mobile app
+- **Path**: `artifacts/bird-breeder/`
+- **Preview**: `/` (root)
+- **Storage**: AsyncStorage (local, no backend)
+
+#### Features
+- Login screen with email authentication
+- Weekly routine checklist (resets every Sunday night, default 10 tasks)
+- My Birds page — cards with photo, ring number, breed, gender, parent info, share button
+- Incubation tracking — animated progress bars, egg count, days remaining
+- Family tree / lineage view — hierarchical bird relationship tree
+- Green & white theme (`#2D7A4F` primary)
+
+#### Key Packages
+- `@react-native-async-storage/async-storage` — persistent local storage
+- `expo-image-picker` — bird photo selection from camera roll
+- `expo-haptics` — haptic feedback
+- `react-native-reanimated` — animated progress bars and checklist interactions
