@@ -3,8 +3,6 @@ import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
   Alert,
-  FlatList,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -12,22 +10,18 @@ import {
   Text,
   TextInput,
   View,
+  Modal,
 } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
-import { IncubationBatch, useIncubation } from "@/context/IncubationContext";
+import { IncubationBatch, SPECIES_LIST, useIncubation } from "@/context/IncubationContext";
 import { useColors } from "@/hooks/useColors";
 
-const STATUS_COLORS = {
-  active: "#2D7A4F",
-  hatched: "#22c55e",
-  failed: "#ef4444",
-};
-
-const STATUS_ICONS = {
-  active: "timer-outline",
-  hatched: "checkmark-circle-outline",
-  failed: "close-circle-outline",
+const STATUS_COLORS: Record<string, string> = {
+  Yumurtada: "#2D7A4F",
+  "Cikım Bekleniyor": "#f59e0b",
+  "Cıktı": "#22c55e",
+  Basarisiz: "#ef4444",
 };
 
 function ProgressBar({ progress, color }: { progress: number; color: string }) {
@@ -35,7 +29,7 @@ function ProgressBar({ progress, color }: { progress: number; color: string }) {
   const width = useSharedValue(0);
 
   React.useEffect(() => {
-    width.value = withTiming(progress, { duration: 900 });
+    width.value = withTiming(progress, { duration: 1000 });
   }, [progress]);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -43,43 +37,41 @@ function ProgressBar({ progress, color }: { progress: number; color: string }) {
   }));
 
   return (
-    <View
-      style={{
-        height: 8,
-        backgroundColor: colors.border,
-        borderRadius: 4,
-        overflow: "hidden",
-        flex: 1,
-      }}
-    >
-      <Animated.View
-        style={[{ height: 8, borderRadius: 4, backgroundColor: color }, animStyle]}
-      />
+    <View style={{ height: 10, backgroundColor: colors.border, borderRadius: 5, overflow: "hidden", flex: 1 }}>
+      <Animated.View style={[{ height: 10, borderRadius: 5, backgroundColor: color }, animStyle]} />
     </View>
   );
 }
 
 function BatchCard({ batch }: { batch: IncubationBatch }) {
   const colors = useColors();
-  const { updateBatch, deleteBatch, getDaysRemaining, getProgress } = useIncubation();
+  const { updateBatch, deleteBatch, getDaysRemaining, getProgress, getTurkishStatus } = useIncubation();
   const progress = getProgress(batch);
   const daysLeft = getDaysRemaining(batch);
-  const statusColor = STATUS_COLORS[batch.status];
+  const turkishStatus = getTurkishStatus(batch);
+  const statusColor =
+    batch.status === "hatched"
+      ? "#22c55e"
+      : batch.status === "failed"
+      ? "#ef4444"
+      : progress >= 0.8
+      ? "#f59e0b"
+      : colors.primary;
 
   const handleStatusChange = () => {
-    Alert.alert("Update Status", "Mark this batch as:", [
-      { text: "Active", onPress: () => updateBatch(batch.id, { status: "active" }) },
-      { text: "Hatched", onPress: () => updateBatch(batch.id, { status: "hatched" }) },
-      { text: "Failed", onPress: () => updateBatch(batch.id, { status: "failed" }) },
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Durum Guncelle", "Bu yuva icin durum:", [
+      { text: "Aktif", onPress: () => updateBatch(batch.id, { status: "active" }) },
+      { text: "Cikti (Hatched)", onPress: () => updateBatch(batch.id, { status: "hatched" }) },
+      { text: "Basarisiz", onPress: () => updateBatch(batch.id, { status: "failed" }) },
+      { text: "Iptal", style: "cancel" },
     ]);
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete Batch", `Remove incubation batch for ${batch.birdName}?`, [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Grubu Sil", `${batch.birdName} grubunu sil?`, [
+      { text: "Iptal", style: "cancel" },
       {
-        text: "Delete",
+        text: "Sil",
         style: "destructive",
         onPress: async () => {
           await deleteBatch(batch.id);
@@ -90,7 +82,7 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
   };
 
   const pct = Math.round(progress * 100);
-  const startDate = new Date(batch.startDate).toLocaleDateString();
+  const startDate = new Date(batch.startDate).toLocaleDateString("tr-TR");
 
   const styles = StyleSheet.create({
     card: {
@@ -104,10 +96,7 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
       shadowRadius: 6,
       elevation: 2,
     },
-    topStrip: {
-      height: 4,
-      backgroundColor: statusColor,
-    },
+    topStrip: { height: 5, backgroundColor: statusColor },
     content: { padding: 16 },
     headerRow: {
       flexDirection: "row",
@@ -125,28 +114,23 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
       borderRadius: 20,
-      backgroundColor: statusColor + "18",
+      backgroundColor: statusColor + "1A",
     },
     statusText: {
       fontSize: 12,
-      fontFamily: "Inter_500Medium",
+      fontFamily: "Inter_600SemiBold",
       color: statusColor,
-      textTransform: "capitalize",
     },
-    breedText: {
+    speciesText: {
       fontSize: 13,
       color: colors.mutedForeground,
       fontFamily: "Inter_400Regular",
       marginBottom: 12,
     },
-    statsRow: {
-      flexDirection: "row",
-      gap: 12,
-      marginBottom: 14,
-    },
+    statsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
     statBox: {
       flex: 1,
       backgroundColor: colors.muted,
@@ -161,40 +145,38 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
       color: colors.foreground,
     },
     statLabel: {
-      fontSize: 11,
+      fontSize: 10,
       color: colors.mutedForeground,
       fontFamily: "Inter_400Regular",
       marginTop: 2,
+      textAlign: "center",
     },
     progressRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      marginBottom: 12,
+      marginBottom: 10,
     },
     pctText: {
       fontSize: 13,
-      fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
+      fontWeight: "700" as const,
+      fontFamily: "Inter_700Bold",
       color: statusColor,
-      minWidth: 36,
+      minWidth: 40,
       textAlign: "right",
     },
-    actionRow: {
+    footer: {
       flexDirection: "row",
-      gap: 8,
-    },
-    actionBtn: {
-      flex: 1,
-      paddingVertical: 9,
-      borderRadius: 10,
       alignItems: "center",
-      borderWidth: 1,
+      justifyContent: "space-between",
     },
     startDate: {
-      fontSize: 12,
+      fontSize: 11,
       color: colors.mutedForeground,
       fontFamily: "Inter_400Regular",
+    },
+    deleteBtn: {
+      padding: 6,
     },
   });
 
@@ -206,47 +188,38 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
           <Text style={styles.birdName}>{batch.birdName}</Text>
           <Pressable onPress={handleStatusChange}>
             <View style={styles.statusBadge}>
-              <Ionicons name={STATUS_ICONS[batch.status] as any} size={12} color={statusColor} />
-              <Text style={styles.statusText}>{batch.status}</Text>
+              <Text style={styles.statusText}>{turkishStatus}</Text>
             </View>
           </Pressable>
         </View>
-        <Text style={styles.breedText}>{batch.breed}</Text>
+        <Text style={styles.speciesText}>{batch.species}</Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statVal}>{batch.eggCount}</Text>
-            <Text style={styles.statLabel}>Eggs</Text>
+            <Text style={styles.statLabel}>Yumurta</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statVal}>{batch.incubationDays}</Text>
-            <Text style={styles.statLabel}>Total Days</Text>
+            <Text style={styles.statLabel}>Toplam Gun</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={[styles.statVal, { color: batch.status === "active" ? colors.primary : statusColor }]}>
+            <Text style={[styles.statVal, { color: batch.status === "active" ? statusColor : colors.mutedForeground }]}>
               {batch.status === "active" ? daysLeft : "—"}
             </Text>
-            <Text style={styles.statLabel}>Days Left</Text>
+            <Text style={styles.statLabel}>Kalan Gun</Text>
           </View>
         </View>
 
         <View style={styles.progressRow}>
-          <ProgressBar progress={batch.status === "hatched" ? 1 : batch.status === "failed" ? progress : progress} color={statusColor} />
+          <ProgressBar progress={progress} color={statusColor} />
           <Text style={styles.pctText}>{pct}%</Text>
         </View>
 
-        <Text style={styles.startDate}>Started: {startDate}</Text>
-
-        <View style={[styles.actionRow, { marginTop: 12 }]}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionBtn,
-              { borderColor: colors.border, backgroundColor: colors.muted },
-              pressed && { opacity: 0.7 },
-            ]}
-            onPress={handleDelete}
-          >
-            <Ionicons name="trash-outline" size={16} color={colors.destructive} />
+        <View style={styles.footer}>
+          <Text style={styles.startDate}>Baslangic: {startDate}</Text>
+          <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={18} color={colors.destructive} />
           </Pressable>
         </View>
       </View>
@@ -265,10 +238,14 @@ function AddBatchModal({
 }) {
   const colors = useColors();
   const [birdName, setBirdName] = useState("");
-  const [breed, setBreed] = useState("");
+  const [selectedSpecies, setSelectedSpecies] = useState(SPECIES_LIST[0]);
   const [eggCount, setEggCount] = useState("1");
-  const [incubationDays, setIncubationDays] = useState("18");
+  const [customDays, setCustomDays] = useState("");
   const [notes, setNotes] = useState("");
+
+  const incubationDays = customDays
+    ? parseInt(customDays) || selectedSpecies.days
+    : selectedSpecies.days;
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -276,17 +253,17 @@ function AddBatchModal({
     if (!birdName.trim()) return;
     onSave({
       birdName: birdName.trim(),
-      breed: breed.trim() || "Unknown",
+      species: selectedSpecies.label,
       eggCount: parseInt(eggCount) || 1,
       startDate: today,
-      incubationDays: parseInt(incubationDays) || 18,
+      incubationDays,
       notes,
       status: "active",
     });
     setBirdName("");
-    setBreed("");
+    setSelectedSpecies(SPECIES_LIST[0]);
     setEggCount("1");
-    setIncubationDays("18");
+    setCustomDays("");
     setNotes("");
   };
 
@@ -296,7 +273,7 @@ function AddBatchModal({
       backgroundColor: colors.background,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      maxHeight: "85%",
+      maxHeight: "90%",
     },
     handle: {
       alignSelf: "center",
@@ -322,7 +299,7 @@ function AddBatchModal({
       color: colors.mutedForeground,
       textTransform: "uppercase",
       letterSpacing: 0.5,
-      marginBottom: 6,
+      marginBottom: 8,
       marginTop: 14,
     },
     input: {
@@ -333,6 +310,37 @@ function AddBatchModal({
       color: colors.foreground,
       fontFamily: "Inter_400Regular",
     },
+    speciesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    speciesChip: {
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    speciesChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+    daysBadge: {
+      backgroundColor: colors.secondary,
+      borderRadius: 10,
+      padding: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 8,
+    },
+    daysLabel: {
+      fontSize: 14,
+      fontFamily: "Inter_500Medium",
+      color: colors.foreground,
+    },
+    daysValue: {
+      fontSize: 18,
+      fontWeight: "700" as const,
+      fontFamily: "Inter_700Bold",
+      color: colors.primary,
+    },
     row: { flexDirection: "row", gap: 12 },
     saveBtn: {
       backgroundColor: colors.primary,
@@ -342,7 +350,12 @@ function AddBatchModal({
       marginTop: 24,
       marginBottom: 8,
     },
-    saveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" as const, fontFamily: "Inter_700Bold" },
+    saveBtnText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "700" as const,
+      fontFamily: "Inter_700Bold",
+    },
   });
 
   return (
@@ -351,30 +364,66 @@ function AddBatchModal({
         <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
           <View style={styles.handle} />
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <Text style={styles.title}>New Incubation Batch</Text>
+            <Text style={styles.title}>Yeni Kuluçka Takibi</Text>
 
-            <Text style={styles.label}>Bird / Pair Name *</Text>
+            <Text style={styles.label}>Kus / Cift Adi *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Yellow Canary Pair"
+              placeholder="örn. Sari Kanarya Cifti"
               placeholderTextColor={colors.mutedForeground}
               value={birdName}
               onChangeText={setBirdName}
               autoFocus
             />
 
-            <Text style={styles.label}>Breed</Text>
+            <Text style={styles.label}>Tur Sec</Text>
+            <View style={styles.speciesGrid}>
+              {SPECIES_LIST.map((sp) => (
+                <Pressable
+                  key={sp.label}
+                  style={[
+                    styles.speciesChip,
+                    {
+                      backgroundColor:
+                        selectedSpecies.label === sp.label ? colors.primary + "18" : "transparent",
+                      borderColor:
+                        selectedSpecies.label === sp.label ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => { setSelectedSpecies(sp); setCustomDays(""); }}
+                >
+                  <Text
+                    style={[
+                      styles.speciesChipText,
+                      {
+                        color:
+                          selectedSpecies.label === sp.label ? colors.primary : colors.mutedForeground,
+                      },
+                    ]}
+                  >
+                    {sp.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Kulucka Suresi</Text>
+            <View style={styles.daysBadge}>
+              <Text style={styles.daysLabel}>Otomatik ({selectedSpecies.label})</Text>
+              <Text style={styles.daysValue}>{incubationDays} gun</Text>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Roller Canary"
+              placeholder="Farkli gun sayisi girin (opsiyonel)"
               placeholderTextColor={colors.mutedForeground}
-              value={breed}
-              onChangeText={setBreed}
+              value={customDays}
+              onChangeText={setCustomDays}
+              keyboardType="number-pad"
             />
 
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Egg Count</Text>
+                <Text style={styles.label}>Yumurta Sayisi</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="1"
@@ -384,23 +433,12 @@ function AddBatchModal({
                   keyboardType="number-pad"
                 />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Incubation Days</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="18"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={incubationDays}
-                  onChangeText={setIncubationDays}
-                  keyboardType="number-pad"
-                />
-              </View>
             </View>
 
-            <Text style={styles.label}>Notes</Text>
+            <Text style={styles.label}>Notlar</Text>
             <TextInput
               style={[styles.input, { height: 70, textAlignVertical: "top" }]}
-              placeholder="Optional notes..."
+              placeholder="Opsiyonel notlar..."
               placeholderTextColor={colors.mutedForeground}
               value={notes}
               onChangeText={setNotes}
@@ -412,7 +450,7 @@ function AddBatchModal({
               onPress={handleSave}
               disabled={!birdName.trim()}
             >
-              <Text style={styles.saveBtnText}>Start Tracking</Text>
+              <Text style={styles.saveBtnText}>Takibi Baslat</Text>
             </Pressable>
           </ScrollView>
         </Pressable>
@@ -427,7 +465,7 @@ export default function IncubationScreen() {
   const [showAdd, setShowAdd] = useState(false);
 
   const active = batches.filter((b) => b.status === "active");
-  const others = batches.filter((b) => b.status !== "active");
+  const completed = batches.filter((b) => b.status !== "active");
 
   const handleAdd = async (batch: Omit<IncubationBatch, "id">) => {
     await addBatch(batch);
@@ -469,14 +507,32 @@ export default function IncubationScreen() {
       paddingBottom: Platform.OS === "web" ? 100 : 120,
     },
     sectionLabel: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: "700" as const,
       fontFamily: "Inter_700Bold",
       color: colors.mutedForeground,
       textTransform: "uppercase",
       letterSpacing: 0.8,
       marginBottom: 10,
-      marginTop: 8,
+      marginTop: 6,
+    },
+    legendRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      paddingHorizontal: 20,
+      marginBottom: 10,
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    legendDot: { width: 8, height: 8, borderRadius: 4 },
+    legendText: {
+      fontSize: 11,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
     },
     empty: {
       alignItems: "center",
@@ -503,8 +559,8 @@ export default function IncubationScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Incubation</Text>
-          <Text style={styles.sub}>{active.length} active batch{active.length !== 1 ? "es" : ""}</Text>
+          <Text style={styles.title}>Kuluçka</Text>
+          <Text style={styles.sub}>{active.length} aktif grup</Text>
         </View>
         <Pressable
           style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
@@ -514,29 +570,38 @@ export default function IncubationScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.legendRow}>
+        {[
+          { label: "Yumurtada", color: colors.primary },
+          { label: "Cikım Bekleniyor", color: "#f59e0b" },
+          { label: "Cıktı", color: "#22c55e" },
+        ].map((l) => (
+          <View key={l.label} style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: l.color }]} />
+            <Text style={styles.legendText}>{l.label}</Text>
+          </View>
+        ))}
+      </View>
+
       <ScrollView contentContainerStyle={styles.listContent}>
         {batches.length === 0 ? (
           <View style={styles.empty}>
             <MaterialCommunityIcons name="egg-easter" size={64} color={colors.border} />
-            <Text style={styles.emptyTitle}>No batches yet</Text>
-            <Text style={styles.emptyText}>Tap + to start tracking an incubation batch</Text>
+            <Text style={styles.emptyTitle}>Henuz grup yok</Text>
+            <Text style={styles.emptyText}>+ butonu ile kuluçka takibi baslatın</Text>
           </View>
         ) : (
           <>
             {active.length > 0 && (
               <>
-                <Text style={styles.sectionLabel}>Active</Text>
-                {active.map((b) => (
-                  <BatchCard key={b.id} batch={b} />
-                ))}
+                <Text style={styles.sectionLabel}>Aktif</Text>
+                {active.map((b) => <BatchCard key={b.id} batch={b} />)}
               </>
             )}
-            {others.length > 0 && (
+            {completed.length > 0 && (
               <>
-                <Text style={styles.sectionLabel}>Completed</Text>
-                {others.map((b) => (
-                  <BatchCard key={b.id} batch={b} />
-                ))}
+                <Text style={styles.sectionLabel}>Tamamlandi</Text>
+                {completed.map((b) => <BatchCard key={b.id} batch={b} />)}
               </>
             )}
           </>

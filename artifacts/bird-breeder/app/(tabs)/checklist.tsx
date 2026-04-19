@@ -2,12 +2,10 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
-  Alert,
   FlatList,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -30,6 +28,14 @@ const CATEGORIES: ChecklistTask["category"][] = [
   "breeding",
   "other",
 ];
+
+const CATEGORY_LABELS: Record<ChecklistTask["category"], string> = {
+  feeding: "Besleme",
+  health: "Saglik",
+  cleaning: "Temizlik",
+  breeding: "Ureme",
+  other: "Diger",
+};
 
 const CATEGORY_COLORS: Record<ChecklistTask["category"], string> = {
   feeding: "#22c55e",
@@ -65,7 +71,7 @@ function TaskRow({ task }: { task: ChecklistTask }) {
     scale.value = withSpring(0.95, {}, () => {
       scale.value = withSpring(1);
     });
-    checkOpacity.value = withTiming(task.completed ? 0 : 1, { duration: 200 });
+    checkOpacity.value = withTiming(task.completed ? 0 : 1, { duration: 180 });
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await toggleTask(task.id);
   };
@@ -129,7 +135,7 @@ function TaskRow({ task }: { task: ChecklistTask }) {
 
 export default function ChecklistScreen() {
   const colors = useColors();
-  const { tasks, addTask, weekLabel } = useChecklist();
+  const { tasks, addTask } = useChecklist();
   const [showAdd, setShowAdd] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newCat, setNewCat] = useState<ChecklistTask["category"]>("other");
@@ -148,14 +154,23 @@ export default function ChecklistScreen() {
   };
 
   const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
+    container: { flex: 1, backgroundColor: colors.background },
     header: {
       paddingHorizontal: 20,
       paddingTop: Platform.OS === "web" ? 80 : 16,
       paddingBottom: 16,
+    },
+    screenTitle: {
+      fontSize: 26,
+      fontWeight: "700" as const,
+      fontFamily: "Inter_700Bold",
+      color: colors.foreground,
+      marginBottom: 2,
+    },
+    weekLabel: {
+      fontSize: 13,
+      color: colors.mutedForeground,
+      fontFamily: "Inter_400Regular",
     },
     progressCard: {
       backgroundColor: colors.primary,
@@ -214,27 +229,12 @@ export default function ChecklistScreen() {
       shadowRadius: 8,
       elevation: 6,
     },
-    empty: {
-      alignItems: "center",
-      paddingVertical: 40,
-    },
+    empty: { alignItems: "center", paddingVertical: 40 },
     emptyText: {
       fontSize: 15,
       color: colors.mutedForeground,
       fontFamily: "Inter_400Regular",
       marginTop: 12,
-    },
-    weekLabel: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
-    },
-    screenTitle: {
-      fontSize: 26,
-      fontWeight: "700" as const,
-      fontFamily: "Inter_700Bold",
-      color: colors.foreground,
-      marginBottom: 2,
     },
     modalOverlay: {
       flex: 1,
@@ -253,7 +253,7 @@ export default function ChecklistScreen() {
       fontWeight: "700" as const,
       fontFamily: "Inter_700Bold",
       color: colors.foreground,
-      marginBottom: 20,
+      marginBottom: 16,
     },
     modalInput: {
       backgroundColor: colors.muted,
@@ -264,12 +264,7 @@ export default function ChecklistScreen() {
       color: colors.foreground,
       marginBottom: 16,
     },
-    catRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-      marginBottom: 20,
-    },
+    catRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
     catChip: {
       flexDirection: "row",
       alignItems: "center",
@@ -279,10 +274,7 @@ export default function ChecklistScreen() {
       gap: 4,
       borderWidth: 1.5,
     },
-    catChipText: {
-      fontSize: 13,
-      fontFamily: "Inter_500Medium",
-    },
+    catChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
     addBtn: {
       backgroundColor: colors.primary,
       borderRadius: 14,
@@ -300,14 +292,14 @@ export default function ChecklistScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>Weekly Checklist</Text>
-        <Text style={styles.weekLabel}>Resets every Sunday night</Text>
+        <Text style={styles.screenTitle}>Haftalik Liste</Text>
+        <Text style={styles.weekLabel}>Her Pazar 00:00'da sifirlanir</Text>
       </View>
 
       <View style={styles.progressCard}>
-        <Text style={styles.progressTitle}>This week's progress</Text>
+        <Text style={styles.progressTitle}>Bu haftanin ilerlemesi</Text>
         <Text style={styles.progressCount}>{completed}/{total}</Text>
-        <Text style={styles.progressSub}>tasks completed</Text>
+        <Text style={styles.progressSub}>gorev tamamlandi</Text>
         <View style={styles.progressBarBg}>
           <View style={styles.progressBarFill} />
         </View>
@@ -321,7 +313,7 @@ export default function ChecklistScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="clipboard-outline" size={40} color={colors.mutedForeground} />
-            <Text style={styles.emptyText}>No tasks yet. Add your first task.</Text>
+            <Text style={styles.emptyText}>Henuz gorev yok. Ilk gorevi ekleyin.</Text>
           </View>
         }
         scrollEnabled
@@ -337,10 +329,10 @@ export default function ChecklistScreen() {
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowAdd(false)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Add Task</Text>
+            <Text style={styles.modalTitle}>Gorev Ekle</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Task description..."
+              placeholder="Gorev aciklamasi..."
               placeholderTextColor={colors.mutedForeground}
               value={newLabel}
               onChangeText={setNewLabel}
@@ -372,7 +364,7 @@ export default function ChecklistScreen() {
                       { color: newCat === cat ? CATEGORY_COLORS[cat] : colors.mutedForeground },
                     ]}
                   >
-                    {cat}
+                    {CATEGORY_LABELS[cat]}
                   </Text>
                 </Pressable>
               ))}
@@ -382,7 +374,7 @@ export default function ChecklistScreen() {
               onPress={handleAdd}
               disabled={!newLabel.trim()}
             >
-              <Text style={styles.addBtnText}>Add Task</Text>
+              <Text style={styles.addBtnText}>Gorev Ekle</Text>
             </Pressable>
           </Pressable>
         </Pressable>

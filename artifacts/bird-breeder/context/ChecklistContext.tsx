@@ -9,16 +9,16 @@ export interface ChecklistTask {
 }
 
 const DEFAULT_TASKS: Omit<ChecklistTask, "completed">[] = [
-  { id: "t1", label: "Morning feeding", category: "feeding" },
-  { id: "t2", label: "Evening feeding", category: "feeding" },
-  { id: "t3", label: "Fresh water change", category: "feeding" },
-  { id: "t4", label: "Check egg incubation", category: "breeding" },
-  { id: "t5", label: "Clean cages", category: "cleaning" },
-  { id: "t6", label: "Health check — observe birds", category: "health" },
-  { id: "t7", label: "Record observations/notes", category: "other" },
-  { id: "t8", label: "Supplement vitamins", category: "health" },
-  { id: "t9", label: "Spot clean aviary", category: "cleaning" },
-  { id: "t10", label: "Check nesting boxes", category: "breeding" },
+  { id: "t1", label: "Sabah yemi verme", category: "feeding" },
+  { id: "t2", label: "Akşam yemi verme", category: "feeding" },
+  { id: "t3", label: "Taze su değiştirme", category: "feeding" },
+  { id: "t4", label: "Yumurta kontrolü", category: "breeding" },
+  { id: "t5", label: "Kafes temizleme", category: "cleaning" },
+  { id: "t6", label: "Sağlık kontrolü", category: "health" },
+  { id: "t7", label: "Not ve gözlem kayıt", category: "other" },
+  { id: "t8", label: "Vitamin takviyesi", category: "health" },
+  { id: "t9", label: "Uçuş alanı temizliği", category: "cleaning" },
+  { id: "t10", label: "Yuva kutusu kontrolü", category: "breeding" },
 ];
 
 interface ChecklistContextType {
@@ -27,7 +27,7 @@ interface ChecklistContextType {
   addTask: (label: string, category: ChecklistTask["category"]) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   weekLabel: string;
-  resetDue: boolean;
+  clearAll: () => Promise<void>;
 }
 
 const ChecklistContext = createContext<ChecklistContextType>({
@@ -36,18 +36,19 @@ const ChecklistContext = createContext<ChecklistContextType>({
   addTask: async () => {},
   deleteTask: async () => {},
   weekLabel: "",
-  resetDue: false,
+  clearAll: async () => {},
 });
 
-const STORAGE_KEY = "checklist_data";
-const WEEK_KEY = "checklist_week";
+const STORAGE_KEY = "checklist_data_v2";
+const WEEK_KEY = "checklist_week_v2";
 
-function getWeekString() {
+function getISOWeekKey(): string {
   const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(now.setDate(diff));
-  return `${monday.getFullYear()}-W${Math.ceil(monday.getDate() / 7)}`;
+  const date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${weekNo}`;
 }
 
 export function ChecklistProvider({ children }: { children: React.ReactNode }) {
@@ -55,25 +56,19 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
     DEFAULT_TASKS.map((t) => ({ ...t, completed: false }))
   );
   const [weekLabel, setWeekLabel] = useState("");
-  const [resetDue, setResetDue] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const currentWeek = getWeekString();
+        const currentWeek = getISOWeekKey();
         const savedWeek = await AsyncStorage.getItem(WEEK_KEY);
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
         if (savedWeek !== currentWeek) {
-          const now = new Date();
-          const isSundayNight = now.getDay() === 0 && now.getHours() >= 20;
-          if (isSundayNight || savedWeek !== currentWeek) {
-            const reset = DEFAULT_TASKS.map((t) => ({ ...t, completed: false }));
-            setTasks(reset);
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reset));
-            await AsyncStorage.setItem(WEEK_KEY, currentWeek);
-            setResetDue(false);
-          }
+          const reset = DEFAULT_TASKS.map((t) => ({ ...t, completed: false }));
+          setTasks(reset);
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reset));
+          await AsyncStorage.setItem(WEEK_KEY, currentWeek);
         } else if (raw) {
           setTasks(JSON.parse(raw));
         }
@@ -106,9 +101,15 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
     await save(tasks.filter((t) => t.id !== id));
   };
 
+  const clearAll = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(WEEK_KEY);
+    setTasks(DEFAULT_TASKS.map((t) => ({ ...t, completed: false })));
+  };
+
   return (
     <ChecklistContext.Provider
-      value={{ tasks, toggleTask, addTask, deleteTask, weekLabel, resetDue }}
+      value={{ tasks, toggleTask, addTask, deleteTask, weekLabel, clearAll }}
     >
       {children}
     </ChecklistContext.Provider>

@@ -3,7 +3,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { Feather, MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
@@ -14,19 +14,23 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="checklist">
         <Icon sf={{ default: "checklist", selected: "checklist" }} />
-        <Label>Checklist</Label>
+        <Label>Kontrol</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="birds">
         <Icon sf={{ default: "bird", selected: "bird.fill" }} />
-        <Label>My Birds</Label>
+        <Label>Kuslarim</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="incubation">
         <Icon sf={{ default: "drop.circle", selected: "drop.circle.fill" }} />
-        <Label>Incubation</Label>
+        <Label>Kulucka</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="lineage">
         <Icon sf={{ default: "list.bullet.indent", selected: "list.bullet.indent" }} />
-        <Label>Lineage</Label>
+        <Label>Soy</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>Ayarlar</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -62,10 +66,7 @@ function ClassicTabLayout() {
             />
           ) : isWeb ? (
             <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]}
             />
           ) : null,
       }}
@@ -73,10 +74,10 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="checklist"
         options={{
-          title: "Checklist",
+          title: "Kontrol",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="checklist" tintColor={color} size={24} />
+              <SymbolView name="checklist" tintColor={color} size={22} />
             ) : (
               <Ionicons name="checkbox-outline" size={22} color={color} />
             ),
@@ -85,7 +86,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="birds"
         options={{
-          title: "My Birds",
+          title: "Kuslarim",
           tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="bird" size={22} color={color} />
           ),
@@ -94,10 +95,10 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="incubation"
         options={{
-          title: "Incubation",
+          title: "Kulucka",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="drop.circle" tintColor={color} size={24} />
+              <SymbolView name="drop.circle" tintColor={color} size={22} />
             ) : (
               <MaterialCommunityIcons name="egg-outline" size={22} color={color} />
             ),
@@ -106,15 +107,28 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="lineage"
         options={{
-          title: "Lineage",
+          title: "Soy",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="list.bullet.indent" tintColor={color} size={24} />
+              <SymbolView name="list.bullet.indent" tintColor={color} size={22} />
             ) : (
               <MaterialCommunityIcons name="family-tree" size={22} color={color} />
             ),
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Ayarlar",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="gearshape" tintColor={color} size={22} />
+            ) : (
+              <Ionicons name="settings-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen name="index" options={{ href: null }} />
     </Tabs>
   );
 }
