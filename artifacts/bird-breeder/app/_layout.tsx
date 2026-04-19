@@ -28,7 +28,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      router.replace("/(tabs)/checklist");
+      router.replace("/(tabs)");
     } else {
       router.replace("/login");
     }

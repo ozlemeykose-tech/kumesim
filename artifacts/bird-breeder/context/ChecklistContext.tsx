@@ -11,7 +11,7 @@ export interface ChecklistTask {
 const DEFAULT_TASKS: Omit<ChecklistTask, "completed">[] = [
   { id: "t1", label: "Sabah yemi verme", category: "feeding" },
   { id: "t2", label: "Akşam yemi verme", category: "feeding" },
-  { id: "t3", label: "Taze su değiştirme", category: "feeding" },
+  { id: "t3", label: "Taze Su değiştirme", category: "feeding" },
   { id: "t4", label: "Yumurta kontrolü", category: "breeding" },
   { id: "t5", label: "Kafes temizleme", category: "cleaning" },
   { id: "t6", label: "Sağlık kontrolü", category: "health" },
