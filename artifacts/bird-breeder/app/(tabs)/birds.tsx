@@ -18,8 +18,11 @@ import {
   View,
 } from "react-native";
 
+import { router } from "expo-router";
+
 import { Bird, MAX_BIRDS, useBirds } from "@/context/BirdsContext";
 import { useColors } from "@/hooks/useColors";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 type Gender = "male" | "female" | "unknown";
 
@@ -133,110 +136,186 @@ function BirdCard({
   bird,
   onPress,
   onShare,
+  onEdit,
+  onLineage,
 }: {
   bird: Bird;
   onPress: () => void;
   onShare: () => void;
+  onEdit: () => void;
+  onLineage: () => void;
 }) {
   const colors = useColors();
+
+  const displayName = bird.name?.trim() ? bird.name : `Kuş #${bird.id.slice(-6)}`;
+  const subtitle = bird.species || bird.breed || "Tür belirtilmemiş";
 
   const styles = StyleSheet.create({
     card: {
       backgroundColor: colors.card,
-      borderRadius: 16,
-      marginBottom: 12,
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 12,
-      gap: 12,
+      borderRadius: 18,
+      marginBottom: 16,
+      overflow: "hidden",
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.07,
-      shadowRadius: 5,
-      elevation: 2,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.09,
+      shadowRadius: 8,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: "#E6EBE7",
     },
     imageWrap: {
-      width: 68,
-      height: 68,
-      borderRadius: 14,
-      backgroundColor: colors.secondary,
+      width: "100%",
+      height: 170,
+      backgroundColor: "#E6EFE9",
       alignItems: "center",
       justifyContent: "center",
-      overflow: "hidden",
     },
-    birdImage: { width: 68, height: 68, borderRadius: 14 },
-    info: { flex: 1 },
-    name: {
-      fontSize: 16,
-      fontWeight: "700" as const,
+    birdImage: { width: "100%", height: 170 },
+    ringTag: {
+      position: "absolute",
+      top: 12, right: 12,
+      backgroundColor: "rgba(45,122,79,0.92)",
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    ringTagText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontWeight: "700",
       fontFamily: "Inter_700Bold",
-      color: colors.foreground,
-      marginBottom: 3,
     },
-    speciesRow: {
+    body: { padding: 14 },
+    nameRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      marginBottom: 2,
+      gap: 8,
+      marginBottom: 4,
     },
-    speciesText: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+    name: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
+      color: "#1A2E22",
     },
     genderDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 3.5,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
       backgroundColor: GENDER_COLOR[bird.gender],
     },
-    ringBadge: {
-      fontSize: 11,
-      color: colors.primary,
-      fontFamily: "Inter_500Medium",
-      backgroundColor: colors.secondary,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-      alignSelf: "flex-start",
+    sub: {
+      fontSize: 13,
+      color: "#6B7B72",
+      fontFamily: "Inter_400Regular",
+      marginBottom: 12,
     },
-    shareBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: "#25D366" + "18",
+    soyBtn: {
+      backgroundColor: "#2D7A4F",
+      borderRadius: 12,
+      paddingVertical: 12,
       alignItems: "center",
+      flexDirection: "row",
       justifyContent: "center",
+      gap: 8,
+      marginBottom: 10,
+    },
+    soyBtnText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
+      letterSpacing: 0.5,
+    },
+    btnRow: { flexDirection: "row", gap: 10 },
+    editBtn: {
+      flex: 1,
+      backgroundColor: "#5B89A8",
+      borderRadius: 12,
+      paddingVertical: 11,
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 6,
+    },
+    editBtnText: {
+      color: "#FFFFFF",
+      fontSize: 13,
+      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
+      letterSpacing: 0.4,
+    },
+    waBtn: {
+      flex: 1,
+      backgroundColor: "#25D366",
+      borderRadius: 12,
+      paddingVertical: 11,
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 6,
+    },
+    waBtnText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
+      letterSpacing: 0.3,
     },
   });
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-      onPress={onPress}
-    >
-      <View style={styles.imageWrap}>
-        {bird.imageUri ? (
-          <Image source={{ uri: bird.imageUri }} style={styles.birdImage} />
-        ) : (
-          <MaterialCommunityIcons name="bird" size={32} color={colors.primary} />
-        )}
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.name}>{bird.name}</Text>
-        <View style={styles.speciesRow}>
-          <View style={styles.genderDot} />
-          <Text style={styles.speciesText}>{bird.species || bird.breed || "Bilinmiyor"}</Text>
+    <View style={styles.card}>
+      <Pressable onPress={onPress}>
+        <View style={styles.imageWrap}>
+          {bird.imageUri ? (
+            <Image source={{ uri: bird.imageUri }} style={styles.birdImage} resizeMode="cover" />
+          ) : (
+            <MaterialCommunityIcons name="bird" size={64} color="#2D7A4F" />
+          )}
+          {!!bird.ringNo && (
+            <View style={styles.ringTag}>
+              <Text style={styles.ringTagText}>{bird.ringNo}</Text>
+            </View>
+          )}
         </View>
-        {!!bird.ringNo && <Text style={styles.ringBadge}>{bird.ringNo}</Text>}
-      </View>
-      <Pressable
-        style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.7 }]}
-        onPress={onShare}
-      >
-        <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
       </Pressable>
-    </Pressable>
+
+      <View style={styles.body}>
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
+          <View style={styles.genderDot} />
+        </View>
+        <Text style={styles.sub} numberOfLines={1}>{subtitle}</Text>
+
+        <Pressable
+          style={({ pressed }) => [styles.soyBtn, pressed && { opacity: 0.85 }]}
+          onPress={onLineage}
+        >
+          <MaterialCommunityIcons name="family-tree" size={18} color="#FFFFFF" />
+          <Text style={styles.soyBtnText}>SOY AĞACI</Text>
+        </Pressable>
+
+        <View style={styles.btnRow}>
+          <Pressable
+            style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.85 }]}
+            onPress={onEdit}
+          >
+            <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.editBtnText}>DÜZENLE</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.waBtn, pressed && { opacity: 0.85 }]}
+            onPress={onShare}
+          >
+            <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
+            <Text style={styles.waBtnText}>WhatsApp Paylaş</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -922,10 +1001,10 @@ export default function BirdsScreen() {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    header: {
+    subHeader: {
       paddingHorizontal: 20,
-      paddingTop: Platform.OS === "web" ? 80 : 16,
-      paddingBottom: 10,
+      paddingTop: 14,
+      paddingBottom: 6,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -991,11 +1070,12 @@ export default function BirdsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <ScreenHeader active="birds" />
+      <View style={styles.subHeader}>
         <View>
-          <Text style={styles.title}>Kuslarim</Text>
+          <Text style={styles.title}>Kuşlarım</Text>
           <View style={styles.countRow}>
-            <Text style={styles.count}>{birds.length} kus</Text>
+            <Text style={styles.count}>{birds.length} kuş</Text>
             <Text style={styles.limitBadge}>{birds.length}/{MAX_BIRDS}</Text>
           </View>
         </View>
@@ -1016,6 +1096,11 @@ export default function BirdsScreen() {
               bird={item}
               onPress={() => setDetailBird(item)}
               onShare={() => shareViaWhatsApp(item, birds)}
+              onEdit={() => {
+                setEditingBird(item);
+                setEditModalVisible(true);
+              }}
+              onLineage={() => router.push("/(tabs)/lineage" as any)}
             />
           </Pressable>
         )}

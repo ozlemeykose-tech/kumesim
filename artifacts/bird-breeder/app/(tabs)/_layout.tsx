@@ -17,23 +17,34 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarActiveTintColor: "#2D7A4F",
+        tabBarInactiveTintColor: "#7B8A82",
         headerShown: false,
+        tabBarLabelStyle: {
+          fontSize: 13,
+          fontWeight: "700",
+          fontFamily: "Inter_700Bold",
+          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 6,
+        },
         tabBarStyle: {
           position: "absolute",
           backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
+          borderTopWidth: isWeb ? 1 : 0.5,
           borderTopColor: colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          height: isWeb ? 92 : 88,
+          paddingBottom: isWeb ? 12 : 28,
+          paddingTop: 8,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-          ) : isWeb ? (
+          ) : (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
-          ) : null,
+          ),
       }}
     >
       <Tabs.Screen name="index" options={{ href: null }} />
@@ -42,8 +53,12 @@ export default function TabLayout() {
         name="birds"
         options={{
           title: "Kütüphane",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="bird" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "bird" : "bird"}
+              size={30}
+              color={color}
+            />
           ),
         }}
       />
@@ -54,9 +69,9 @@ export default function TabLayout() {
           title: "Hızlı Ekle",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="plus.circle.fill" tintColor={color} size={26} />
+              <SymbolView name="plus.circle.fill" tintColor={color} size={32} />
             ) : (
-              <Ionicons name="add-circle" size={26} color={color} />
+              <Ionicons name="add-circle" size={32} color={color} />
             ),
         }}
       />
@@ -65,28 +80,20 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: "Ayarlar",
-          tabBarIcon: ({ color }) =>
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="gearshape.fill" tintColor={color} size={22} />
+              <SymbolView name="gearshape.fill" tintColor={color} size={28} />
             ) : (
-              <Ionicons name="settings-outline" size={22} color={color} />
+              <Ionicons
+                name={focused ? "settings" : "settings-outline"}
+                size={28}
+                color={color}
+              />
             ),
         }}
       />
 
-      <Tabs.Screen
-        name="profil"
-        options={{
-          title: "Profil",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person.fill" tintColor={color} size={22} />
-            ) : (
-              <Ionicons name="person-circle-outline" size={24} color={color} />
-            ),
-        }}
-      />
-
+      <Tabs.Screen name="profil" options={{ href: null }} />
       <Tabs.Screen name="checklist" options={{ href: null }} />
       <Tabs.Screen name="incubation" options={{ href: null }} />
       <Tabs.Screen name="lineage" options={{ href: null }} />

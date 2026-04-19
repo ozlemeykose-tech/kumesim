@@ -23,6 +23,7 @@ import Animated, {
 
 import { ChecklistTask, useChecklist } from "@/context/ChecklistContext";
 import { useColors } from "@/hooks/useColors";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 const CATEGORIES: ChecklistTask["category"][] = [
   "feeding", "health", "cleaning", "breeding", "other",
@@ -273,13 +274,9 @@ export default function ChecklistScreen() {
     container: { flex: 1, backgroundColor: colors.background },
     headerRow: {
       paddingHorizontal: 20,
-      paddingTop: Platform.OS === "web" ? 80 : 16,
+      paddingTop: 14,
       paddingBottom: 8,
       flexDirection: "row", alignItems: "center", gap: 12,
-    },
-    backBtn: {
-      width: 38, height: 38, borderRadius: 12,
-      backgroundColor: colors.secondary, alignItems: "center", justifyContent: "center",
     },
     screenTitle: {
       fontSize: 24, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.foreground, flex: 1,
@@ -331,10 +328,8 @@ export default function ChecklistScreen() {
 
   return (
     <View style={styles.container}>
+      <ScreenHeader active="checklist" />
       <View style={styles.headerRow}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color={colors.foreground} />
-        </Pressable>
         <Text style={styles.screenTitle}>Haftalık Rutin</Text>
       </View>
 

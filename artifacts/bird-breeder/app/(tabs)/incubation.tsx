@@ -16,6 +16,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-na
 
 import { IncubationBatch, SPECIES_LIST, useIncubation } from "@/context/IncubationContext";
 import { useColors } from "@/hooks/useColors";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 const STATUS_COLORS: Record<string, string> = {
   Yumurtada: "#2D7A4F",
@@ -557,6 +558,7 @@ export default function IncubationScreen() {
 
   return (
     <View style={styles.container}>
+      <ScreenHeader active="incubation" />
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Kuluçka</Text>
