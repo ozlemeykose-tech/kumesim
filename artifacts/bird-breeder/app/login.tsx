@@ -109,7 +109,7 @@ export default function LoginScreen() {
 
           <View style={styles.logoWrap}>
             <View style={styles.logoCircle}>
-              <MaterialCommunityIcons name="bird" size={52} color="#FFFFFF" />
+              <MaterialCommunityIcons name="feather" size={52} color="#FFFFFF" />
             </View>
           </View>
           <Text style={styles.appName}>Kümesim</Text>

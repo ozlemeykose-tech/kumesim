@@ -39,69 +39,61 @@ const SPECIES_OPTIONS = [
 ];
 
 async function pickImage(source: "camera" | "gallery"): Promise<string | null> {
-  if (source === "camera") {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("İzin Gerekli", "Kamera erişimi için izin veriniz.");
-      return null;
+  try {
+    if (source === "camera") {
+      if (Platform.OS === "web") {
+        Alert.alert("Uyarı", "Kamera web tarayıcısında desteklenmez. Galeri kullanın.");
+        return null;
+      }
+      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "İzin Gerekli",
+          canAskAgain
+            ? "Kamera kullanmak için izin vermeniz gerekiyor."
+            : "Kamera iznini Ayarlar uygulamasından açmanız gerekiyor."
+        );
+        return null;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("İzin Gerekli", "Fotoğraf kitaplığına erişmek için izin gerekiyor.");
+        return null;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) return result.assets[0].uri;
-  } else {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("İzin Gerekli", "Fotoğraf kitaplığına erişim için izin veriniz.");
-      return null;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) return result.assets[0].uri;
+  } catch (_) {
+    Alert.alert("Hata", "Fotoğraf seçilirken bir hata oluştu.");
   }
   return null;
 }
 
 function showImageSourcePicker(onPick: (uri: string) => void) {
+  const cameraOption = Platform.OS !== "web"
+    ? [{ text: "Kamera", onPress: async () => { const uri = await pickImage("camera"); if (uri) onPick(uri); } }]
+    : [];
+
   if (Platform.OS === "ios") {
     ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: ["İptal", "Kamera", "Galeri"],
-        cancelButtonIndex: 0,
-      },
+      { options: ["İptal", "Kamera", "Galeri"], cancelButtonIndex: 0 },
       async (idx) => {
-        if (idx === 1) {
-          const uri = await pickImage("camera");
-          if (uri) onPick(uri);
-        } else if (idx === 2) {
-          const uri = await pickImage("gallery");
-          if (uri) onPick(uri);
-        }
+        if (idx === 1) { const uri = await pickImage("camera"); if (uri) onPick(uri); }
+        else if (idx === 2) { const uri = await pickImage("gallery"); if (uri) onPick(uri); }
       }
     );
   } else {
-    Alert.alert("Fotoğraf Ekle", "Kaynak seçiniz", [
+    Alert.alert("Fotoğraf Ekle", "Kaynak seçin", [
       { text: "İptal", style: "cancel" },
-      {
-        text: "Kamera",
-        onPress: async () => {
-          const uri = await pickImage("camera");
-          if (uri) onPick(uri);
-        },
-      },
-      {
-        text: "Galeri",
-        onPress: async () => {
-          const uri = await pickImage("gallery");
-          if (uri) onPick(uri);
-        },
-      },
+      ...cameraOption,
+      { text: "Galeri", onPress: async () => { const uri = await pickImage("gallery"); if (uri) onPick(uri); } },
     ]);
   }
 }
@@ -894,9 +886,10 @@ export default function BirdsScreen() {
     } else {
       const result = await addBird(data);
       if (!result.success) {
-        Alert.alert("Limit Doldu", result.reason ?? "Kus eklenemedi.");
+        Alert.alert("Limit Doldu", result.reason ?? "Kuş eklenemedi.");
         return;
       }
+      Alert.alert("Başarılı", "Kuş başarıyla kaydedildi! 🐦");
     }
     setEditModalVisible(false);
     setEditingBird(undefined);

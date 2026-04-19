@@ -30,59 +30,65 @@ export default function TabLayout() {
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
+            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Ana Sayfa",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="house.fill" tintColor={color} size={22} />
-            ) : (
-              <Ionicons name="home-outline" size={22} color={color} />
-            ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{ href: null }} />
+
       <Tabs.Screen
         name="birds"
         options={{
-          title: "Kuşlarım",
+          title: "Kütüphane",
           tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="bird" size={22} color={color} />
+            <MaterialCommunityIcons name="bird" size={24} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
-        name="incubation"
+        name="hizli-ekle"
         options={{
-          title: "Kuluçka",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="egg-outline" size={22} color={color} />
-          ),
+          title: "Hızlı Ekle",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="plus.circle.fill" tintColor={color} size={26} />
+            ) : (
+              <Ionicons name="add-circle" size={26} color={color} />
+            ),
         }}
       />
+
       <Tabs.Screen
         name="settings"
         options={{
           title: "Ayarlar",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="gearshape" tintColor={color} size={22} />
+              <SymbolView name="gearshape.fill" tintColor={color} size={22} />
             ) : (
               <Ionicons name="settings-outline" size={22} color={color} />
             ),
         }}
       />
+
+      <Tabs.Screen
+        name="profil"
+        options={{
+          title: "Profil",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person.fill" tintColor={color} size={22} />
+            ) : (
+              <Ionicons name="person-circle-outline" size={24} color={color} />
+            ),
+        }}
+      />
+
       <Tabs.Screen name="checklist" options={{ href: null }} />
+      <Tabs.Screen name="incubation" options={{ href: null }} />
       <Tabs.Screen name="lineage" options={{ href: null }} />
     </Tabs>
   );

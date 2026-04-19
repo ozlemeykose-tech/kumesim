@@ -6,9 +6,10 @@ export interface ChecklistTask {
   label: string;
   category: "feeding" | "health" | "cleaning" | "breeding" | "other";
   completed: boolean;
+  completedDates: string[];
 }
 
-const DEFAULT_TASKS: Omit<ChecklistTask, "completed">[] = [
+const DEFAULT_TASKS: Omit<ChecklistTask, "completed" | "completedDates">[] = [
   { id: "t1", label: "Sabah yemi verme", category: "feeding" },
   { id: "t2", label: "Akşam yemi verme", category: "feeding" },
   { id: "t3", label: "Taze Su değiştirme", category: "feeding" },
@@ -28,6 +29,7 @@ interface ChecklistContextType {
   deleteTask: (id: string) => Promise<void>;
   weekLabel: string;
   clearAll: () => Promise<void>;
+  getTasksForDate: (isoDate: string) => { task: ChecklistTask; done: boolean }[];
 }
 
 const ChecklistContext = createContext<ChecklistContextType>({
@@ -37,10 +39,11 @@ const ChecklistContext = createContext<ChecklistContextType>({
   deleteTask: async () => {},
   weekLabel: "",
   clearAll: async () => {},
+  getTasksForDate: () => [],
 });
 
-const STORAGE_KEY = "checklist_data_v2";
-const WEEK_KEY = "checklist_week_v2";
+const STORAGE_KEY = "checklist_data_v3";
+const WEEK_KEY = "checklist_week_v3";
 
 function getISOWeekKey(): string {
   const now = new Date();
@@ -53,7 +56,7 @@ function getISOWeekKey(): string {
 
 export function ChecklistProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<ChecklistTask[]>(
-    DEFAULT_TASKS.map((t) => ({ ...t, completed: false }))
+    DEFAULT_TASKS.map((t) => ({ ...t, completed: false, completedDates: [] }))
   );
   const [weekLabel, setWeekLabel] = useState("");
 
@@ -65,12 +68,22 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
         if (savedWeek !== currentWeek) {
-          const reset = DEFAULT_TASKS.map((t) => ({ ...t, completed: false }));
+          const existing = raw ? JSON.parse(raw) as ChecklistTask[] : null;
+          const reset = DEFAULT_TASKS.map((t) => {
+            const prev = existing?.find((e) => e.id === t.id);
+            return {
+              ...t,
+              completed: false,
+              completedDates: prev?.completedDates ?? [],
+            };
+          });
           setTasks(reset);
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reset));
           await AsyncStorage.setItem(WEEK_KEY, currentWeek);
         } else if (raw) {
-          setTasks(JSON.parse(raw));
+          const parsed = JSON.parse(raw) as ChecklistTask[];
+          const migrated = parsed.map((t) => ({ ...t, completedDates: t.completedDates ?? [] }));
+          setTasks(migrated);
         }
         setWeekLabel(currentWeek);
       } catch (_) {}
@@ -83,8 +96,24 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
+  const todayISO = () => new Date().toISOString().split("T")[0];
+
   const toggleTask = async (id: string) => {
-    await save(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
+    const today = todayISO();
+    await save(
+      tasks.map((t) => {
+        if (t.id !== id) return t;
+        const isCompleting = !t.completed;
+        const dates = t.completedDates ?? [];
+        return {
+          ...t,
+          completed: isCompleting,
+          completedDates: isCompleting
+            ? [...new Set([...dates, today])]
+            : dates.filter((d) => d !== today),
+        };
+      })
+    );
   };
 
   const addTask = async (label: string, category: ChecklistTask["category"]) => {
@@ -93,6 +122,7 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
       label,
       category,
       completed: false,
+      completedDates: [],
     };
     await save([...tasks, newTask]);
   };
@@ -101,15 +131,18 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
     await save(tasks.filter((t) => t.id !== id));
   };
 
+  const getTasksForDate = (isoDate: string) =>
+    tasks.map((t) => ({ task: t, done: (t.completedDates ?? []).includes(isoDate) }));
+
   const clearAll = async () => {
     await AsyncStorage.removeItem(STORAGE_KEY);
     await AsyncStorage.removeItem(WEEK_KEY);
-    setTasks(DEFAULT_TASKS.map((t) => ({ ...t, completed: false })));
+    setTasks(DEFAULT_TASKS.map((t) => ({ ...t, completed: false, completedDates: [] })));
   };
 
   return (
     <ChecklistContext.Provider
-      value={{ tasks, toggleTask, addTask, deleteTask, weekLabel, clearAll }}
+      value={{ tasks, toggleTask, addTask, deleteTask, weekLabel, clearAll, getTasksForDate }}
     >
       {children}
     </ChecklistContext.Provider>
