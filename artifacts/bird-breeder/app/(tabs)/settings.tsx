@@ -110,47 +110,27 @@ export default function SettingsScreen() {
   const { clearAll: clearChecklist } = useChecklist();
   const { clearAll: clearIncubation } = useIncubation();
 
-  const handleLogout = () => {
-    Alert.alert("Çıkış Yap", "Hesabınızdan çıkış yapılsın mı?", [
-      { text: "İptal", style: "cancel" },
-      {
-        text: "Çıkış Yap",
-        style: "destructive",
-        onPress: async () => {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          await logout();
-          router.replace("/login");
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
       "Hesabı Sil",
-      "Bu işlem geri alınamaz. Tüm kuş, kuluçka ve kontrol listesi verileri silinecektir.",
+      "Tüm veriler kalıcı olarak silinecek. Emin misiniz?",
       [
         { text: "İptal", style: "cancel" },
         {
-          text: "Tamamen Sil",
+          text: "Evet, Sil",
           style: "destructive",
-          onPress: () => {
-            Alert.alert("Emin misiniz?", "Tüm veriler kalıcı olarak silinecek.", [
-              { text: "Hayır", style: "cancel" },
-              {
-                text: "Evet, Sil",
-                style: "destructive",
-                onPress: async () => {
-                  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                  await clearBirds();
-                  await clearChecklist();
-                  await clearIncubation();
-                  await AsyncStorage.clear();
-                  await logout();
-                  router.replace("/login");
-                },
-              },
-            ]);
+          onPress: async () => {
+            await clearBirds();
+            await clearChecklist();
+            await clearIncubation();
+            await AsyncStorage.clear();
+            await logout();
+            router.replace("/login");
           },
         },
       ]

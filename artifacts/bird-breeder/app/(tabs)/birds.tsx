@@ -269,16 +269,20 @@ function BirdCard({
       borderRadius: 12,
     },
     deleteBtn: {
-      position: "absolute",
-      top: 10, right: 10,
-      width: 36, height: 36, borderRadius: 18,
-      backgroundColor: "rgba(220,38,38,0.92)",
-      alignItems: "center", justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 4,
+      flex: 1,
+      backgroundColor: "#DC2626",
+      borderRadius: 12,
+      paddingVertical: 11,
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 5,
+    },
+    deleteBtnText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 0.3,
     },
     incompleteBadge: {
       position: "absolute",
@@ -420,14 +424,6 @@ function BirdCard({
               <Text style={styles.ringTagText}>{bird.ringNo}</Text>
             </View>
           )}
-          <Pressable
-            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.85 }]}
-            onPress={(e) => { e.stopPropagation?.(); onDelete(); }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Kuşu Sil"
-          >
-            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
-          </Pressable>
           {isIncomplete && (
             <View style={styles.incompleteBadge}>
               <Ionicons name="alert-circle" size={14} color="#FFFFFF" />
@@ -470,11 +466,18 @@ function BirdCard({
             <Text style={styles.editBtnText}>DÜZENLE</Text>
           </Pressable>
           <Pressable
+            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.85 }]}
+            onPress={onDelete}
+          >
+            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.deleteBtnText}>SİL</Text>
+          </Pressable>
+          <Pressable
             style={({ pressed }) => [styles.waBtn, pressed && { opacity: 0.85 }]}
             onPress={onShare}
           >
             <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
-            <Text style={styles.waBtnText}>WhatsApp Paylaş</Text>
+            <Text style={styles.waBtnText}>WhatsApp</Text>
           </Pressable>
         </View>
       </View>
@@ -1205,7 +1208,7 @@ export default function BirdsScreen() {
   const handleDeleteBird = (bird: Bird) => {
     Alert.alert(
       "Kuşu Sil",
-      `"${bird.name}" kalıcı olarak silinsin mi?`,
+      `"${bird.name}" silinsin mi?`,
       [
         { text: "İptal", style: "cancel" },
         {
@@ -1215,6 +1218,7 @@ export default function BirdsScreen() {
             await deleteBird(bird.id);
             if (detailBird?.id === bird.id) setDetailBird(null);
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            Alert.alert("Silindi", "Kuş kaydı silindi.");
           },
         },
       ]

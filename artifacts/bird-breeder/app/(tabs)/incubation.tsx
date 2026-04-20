@@ -127,7 +127,7 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
   const handleDelete = () => {
     Alert.alert(
       "Kaydı Sil",
-      `"${batch.birdName}" kuluçka kaydı kalıcı olarak silinsin mi?`,
+      `"${batch.birdName}" silinsin mi?`,
       [
         { text: "İptal", style: "cancel" },
         {
@@ -136,6 +136,7 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
           onPress: async () => {
             await deleteBatch(batch.id);
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            Alert.alert("Silindi", "Kuluçka kaydı silindi.");
           },
         },
       ]
