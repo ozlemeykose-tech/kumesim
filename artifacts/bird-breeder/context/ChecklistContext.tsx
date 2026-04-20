@@ -10,16 +10,13 @@ export interface ChecklistTask {
 }
 
 const DEFAULT_TASKS: Omit<ChecklistTask, "completed" | "completedDates">[] = [
-  { id: "t1", label: "Sabah yemi verme", category: "feeding" },
-  { id: "t2", label: "Akşam yemi verme", category: "feeding" },
-  { id: "t3", label: "Taze Su değiştirme", category: "feeding" },
-  { id: "t4", label: "Yumurta kontrolü", category: "breeding" },
-  { id: "t5", label: "Kafes temizleme", category: "cleaning" },
-  { id: "t6", label: "Sağlık kontrolü", category: "health" },
-  { id: "t7", label: "Not ve gözlem kayıt", category: "other" },
-  { id: "t8", label: "Vitamin takviyesi", category: "health" },
-  { id: "t9", label: "Uçuş alanı temizliği", category: "cleaning" },
-  { id: "t10", label: "Yuva kutusu kontrolü", category: "breeding" },
+  { id: "tk1", label: "Yem/su", category: "feeding" },
+  { id: "tk2", label: "Kafes Temizliği", category: "cleaning" },
+  { id: "tk3", label: "Mama Desteği", category: "feeding" },
+  { id: "tk4", label: "Vitamin Takviyesi", category: "health" },
+  { id: "tk5", label: "Genel Sağlık Kontrolü", category: "health" },
+  { id: "tk6", label: "Isı/Nem Dengesi", category: "other" },
+  { id: "tk7", label: "Havalandırma/Hava Kalitesi", category: "other" },
 ];
 
 interface ChecklistContextType {
@@ -42,12 +39,26 @@ const ChecklistContext = createContext<ChecklistContextType>({
   getTasksForDate: () => [],
 });
 
-const STORAGE_KEY = "checklist_data_v3";
-const WEEK_KEY = "checklist_week_v3";
+const STORAGE_KEY = "checklist_data_v4";
+const WEEK_KEY = "checklist_week_v4";
+
+// Turkey timezone (UTC+3, no DST) — fixed for the entire app
+export const TURKEY_TZ = "Europe/Istanbul";
+
+// Get today's date as YYYY-MM-DD in Turkey time, regardless of device timezone
+export function getTurkeyTodayISO(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TURKEY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 function getISOWeekKey(): string {
-  const now = new Date();
-  const date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const todayISO = getTurkeyTodayISO();
+  const [y, m, d] = todayISO.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
   date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
@@ -67,9 +78,10 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
         const savedWeek = await AsyncStorage.getItem(WEEK_KEY);
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
-        if (savedWeek !== currentWeek) {
+        if (savedWeek !== currentWeek || !raw) {
+          // New week OR fresh install: seed with the canonical 7 tasks
           const existing = raw ? JSON.parse(raw) as ChecklistTask[] : null;
-          const reset = DEFAULT_TASKS.map((t) => {
+          const seeded = DEFAULT_TASKS.map((t) => {
             const prev = existing?.find((e) => e.id === t.id);
             return {
               ...t,
@@ -77,10 +89,15 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
               completedDates: prev?.completedDates ?? [],
             };
           });
-          setTasks(reset);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reset));
+          // Preserve user-added custom tasks (those whose id is NOT in DEFAULT_TASKS)
+          const defaultIds = new Set(DEFAULT_TASKS.map((t) => t.id));
+          const customs = (existing ?? []).filter((t) => !defaultIds.has(t.id))
+            .map((t) => ({ ...t, completed: false, completedDates: t.completedDates ?? [] }));
+          const final = [...seeded, ...customs];
+          setTasks(final);
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(final));
           await AsyncStorage.setItem(WEEK_KEY, currentWeek);
-        } else if (raw) {
+        } else {
           const parsed = JSON.parse(raw) as ChecklistTask[];
           const migrated = parsed.map((t) => ({ ...t, completedDates: t.completedDates ?? [] }));
           setTasks(migrated);
@@ -96,7 +113,7 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
-  const todayISO = () => new Date().toISOString().split("T")[0];
+  const todayISO = () => getTurkeyTodayISO();
 
   const toggleTask = async (id: string) => {
     const today = todayISO();

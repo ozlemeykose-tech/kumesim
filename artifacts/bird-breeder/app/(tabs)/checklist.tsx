@@ -21,7 +21,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { ChecklistTask, useChecklist } from "@/context/ChecklistContext";
+import { ChecklistTask, getTurkeyTodayISO, useChecklist } from "@/context/ChecklistContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 
@@ -53,22 +53,31 @@ const CATEGORY_ICONS: Record<ChecklistTask["category"], string> = {
   other: "dots-horizontal",
 };
 
-const DAY_LABELS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+// HARDCODED Turkish day abbreviations — never derived from locale to avoid translation bugs
+const DAY_LABELS: readonly string[] = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
 
+// Compute the 7 days of the current week (Mon..Sun) anchored on Turkey time (UTC+3)
 function getWeekDayDates(): { label: string; date: number; iso: string }[] {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
+  // Today as YYYY-MM-DD in Istanbul
+  const todayISO = getTurkeyTodayISO();
+  const [y, m, d] = todayISO.split("-").map(Number);
+
+  // Compute weekday (0=Sun..6=Sat) from a UTC-anchored date — safe across timezones
+  const todayUTC = new Date(Date.UTC(y, m - 1, d));
+  const wd = todayUTC.getUTCDay(); // 0=Sun..6=Sat
+  const diffToMonday = wd === 0 ? -6 : 1 - wd;
+
+  const mondayUTC = new Date(todayUTC);
+  mondayUTC.setUTCDate(todayUTC.getUTCDate() + diffToMonday);
+
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+    const day = new Date(mondayUTC);
+    day.setUTCDate(mondayUTC.getUTCDate() + i);
+    const iso = `${day.getUTCFullYear()}-${String(day.getUTCMonth() + 1).padStart(2, "0")}-${String(day.getUTCDate()).padStart(2, "0")}`;
     return {
-      label: DAY_LABELS[i],
-      date: d.getDate(),
-      iso: d.toISOString().split("T")[0],
+      label: DAY_LABELS[i], // hardcoded constant — never auto-translated
+      date: day.getUTCDate(),
+      iso,
     };
   });
 }
@@ -231,7 +240,7 @@ export default function ChecklistScreen() {
   const [historyDay, setHistoryDay] = useState<{ label: string; iso: string } | null>(null);
 
   const weekDays = getWeekDayDates();
-  const todayISO = new Date().toISOString().split("T")[0];
+  const todayISO = getTurkeyTodayISO();
   const completed = tasks.filter((t) => t.completed).length;
   const total = tasks.length;
   const pct = total > 0 ? completed / total : 0;
@@ -243,30 +252,14 @@ export default function ChecklistScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const handleDelete = (task: ChecklistTask) => {
-    Alert.alert(
-      "Görevi Sil",
-      `"${task.label}" silinsin mi?`,
-      [
-        { text: "İptal", style: "cancel" },
-        {
-          text: "Sil",
-          style: "destructive",
-          onPress: async () => {
-            await deleteTask(task.id);
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          },
-        },
-      ]
-    );
+  // Immediate delete — no confirmation dialog
+  const handleDelete = async (task: ChecklistTask) => {
+    await deleteTask(task.id);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   };
 
+  // Any day is clickable — opens the day's routine view
   const handleDayPress = (day: { label: string; iso: string }) => {
-    if (day.iso > todayISO) {
-      Alert.alert("Gelecek Gün", "Bu gün henüz gelmedi.");
-      return;
-    }
-    if (day.iso === todayISO) return;
     setHistoryDay(day);
   };
 
