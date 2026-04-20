@@ -503,7 +503,7 @@ function AddBatchModal({
 
             <Text style={styles.label}>Kulucka Suresi</Text>
             <View style={styles.daysBadge}>
-              <Text style={styles.daysLabel}>Otomatik ({selectedSpecies.label})</Text>
+              <Text style={styles.daysLabel}>{selectedSpecies.label}</Text>
               <Text style={styles.daysValue}>{incubationDays} gun</Text>
             </View>
             <TextInput

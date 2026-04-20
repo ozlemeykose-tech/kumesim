@@ -41,13 +41,23 @@ async function pickFromGallery(): Promise<string | null> {
       return null;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.6, base64: true,
     });
-    if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+    if (!result.canceled && result.assets?.[0]) return toPersistentUri(result.assets[0]);
   } catch (_) {
     Alert.alert("Hata", "Galeri açılırken bir hata oluştu.");
   }
   return null;
+}
+
+// Convert a picker result into a persistent data URL so the photo survives
+// app refreshes / reopens (native cache URIs and web blob URLs would otherwise expire).
+function toPersistentUri(asset: ImagePicker.ImagePickerAsset): string | null {
+  if (asset.base64) {
+    const mime = asset.mimeType || "image/jpeg";
+    return `data:${mime};base64,${asset.base64}`;
+  }
+  return asset.uri ?? null;
 }
 
 // "Fotoğraf Ekle" → opens the camera IMMEDIATELY (no source-picker dialog).
@@ -83,9 +93,9 @@ async function openCameraDirectly(): Promise<string | null> {
       });
     }
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      allowsEditing: true, aspect: [1, 1], quality: 0.6, base64: true,
     });
-    if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+    if (!result.canceled && result.assets?.[0]) return toPersistentUri(result.assets[0]);
     return null;
   } catch (_) {
     // Camera failed → automatic gallery fallback

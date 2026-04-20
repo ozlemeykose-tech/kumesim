@@ -19,7 +19,6 @@ export const SPECIES_LIST: { label: string; days: number }[] = [
   { label: "Muhabbet Kuşu", days: 18 },
   { label: "Sultan Papağanı", days: 20 },
   { label: "Kanarya", days: 14 },
-  { label: "Fink", days: 14 },
   { label: "Hint Bülbülü", days: 14 },
   { label: "Güvercin", days: 18 },
   { label: "Diğer", days: 18 },
