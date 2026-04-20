@@ -337,9 +337,6 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
 
         <View style={styles.footer}>
           <Text style={styles.startDate}>Başlangıç: {startDate}</Text>
-          <Pressable style={styles.deleteBtn} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-          </Pressable>
         </View>
       </View>
     </View>

@@ -96,9 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteAccount = async () => {
-    if (auth.currentUser) {
-      await deleteUser(auth.currentUser);
-    }
+    const current = auth.currentUser;
+    if (!current) throw new Error("Kullanıcı oturumu bulunamadı.");
+    await deleteUser(current);
   };
 
   return (

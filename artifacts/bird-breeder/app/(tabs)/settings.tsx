@@ -131,10 +131,20 @@ export default function SettingsScreen() {
               await deleteAccount();
               router.replace("/login");
             } catch (err: any) {
-              Alert.alert(
-                "Hata",
-                "Hesap silinirken sorun oluştu. Lütfen tekrar giriş yapıp tekrar deneyin."
-              );
+              const code = err?.code ?? "";
+              if (code === "auth/requires-recent-login") {
+                Alert.alert(
+                  "Oturum Yenileme Gerekli",
+                  "Güvenlik nedeniyle çıkış yapıp tekrar giriş yaptıktan sonra hesabı silebilirsiniz."
+                );
+              } else if (code === "permission-denied") {
+                Alert.alert(
+                  "Firebase İzin Hatası",
+                  "Firestore Güvenlik Kuralları yetersiz. Firebase Console'dan kuralları güncelleyin."
+                );
+              } else {
+                Alert.alert("Hata", err?.message ?? "Hesap silinemedi. Tekrar deneyin.");
+              }
             }
           },
         },

@@ -1215,10 +1215,17 @@ export default function BirdsScreen() {
           text: "Sil",
           style: "destructive",
           onPress: async () => {
-            await deleteBird(bird.id);
-            if (detailBird?.id === bird.id) setDetailBird(null);
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            Alert.alert("Silindi", "Kuş ve görseli buluttan silindi.");
+            try {
+              await deleteBird(bird.id);
+              if (detailBird?.id === bird.id) setDetailBird(null);
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              Alert.alert("Silindi", "Kuş ve görseli buluttan silindi.");
+            } catch (err: any) {
+              const msg = err?.code === "permission-denied"
+                ? "Firebase izin hatası. Firestore Kurallarını kontrol edin."
+                : (err?.message ?? "Silme başarısız. Tekrar deneyin.");
+              Alert.alert("Hata", msg);
+            }
           },
         },
       ]
