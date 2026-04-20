@@ -1,10 +1,3 @@
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -44,16 +37,15 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-  });
+  // Hide splash screen immediately — no font-loading delay.
+  // All screens use system fonts (San Francisco on iOS, Roboto on Android,
+  // system-ui on web). fontFamily style properties that reference Inter are
+  // silently ignored and fall back to the system font.
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
 
   // Web-only: lock the page language to Turkish and disable browser auto-translation.
-  // Without this, Chrome can mistranslate "Çar" → "araba", "Per" → "başına",
-  // "Ayarlar" → "Sahalar/Settings" etc.
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
     try {
@@ -69,18 +61,9 @@ export default function RootLayout() {
         m.setAttribute("content", content);
       };
       ensureMeta("google", "notranslate");
-      // Add a class so CSS .notranslate also blocks Google translate
       document.documentElement.classList.add("notranslate");
     } catch {}
   }, []);
-
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
-  if (!fontsLoaded && !fontError) return null;
 
   return (
     <SafeAreaProvider>
