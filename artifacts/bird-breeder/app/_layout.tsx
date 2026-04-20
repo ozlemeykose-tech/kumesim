@@ -21,9 +21,6 @@ function RootLayoutNav() {
   const { isLoggedIn } = useAuth();
 
   useEffect(() => {
-    // Defer by one tick so Expo Router's navigator finishes mounting
-    // before we attempt to navigate. Without this, calling router.replace()
-    // synchronously on first render throws "navigate before mounting" error.
     const id = setTimeout(() => {
       router.replace(isLoggedIn ? "/(tabs)" : "/login");
     }, 0);
@@ -38,16 +35,26 @@ function RootLayoutNav() {
   );
 }
 
+// Inner component so BirdsProvider can receive the live userEmail from AuthContext.
+// This ensures each account has its own isolated bird list.
+function AuthAwareProviders({ children }: { children: React.ReactNode }) {
+  const { userEmail } = useAuth();
+  return (
+    <BirdsProvider userEmail={userEmail}>
+      <ChecklistProvider>
+        <IncubationProvider>
+          {children}
+        </IncubationProvider>
+      </ChecklistProvider>
+    </BirdsProvider>
+  );
+}
+
 export default function RootLayout() {
-  // Hide splash screen immediately — no font-loading delay.
-  // All screens use system fonts (San Francisco on iOS, Roboto on Android,
-  // system-ui on web). fontFamily style properties that reference Inter are
-  // silently ignored and fall back to the system font.
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
 
-  // Web-only: lock the page language to Turkish and disable browser auto-translation.
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
     try {
@@ -74,13 +81,9 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AuthProvider>
-                <BirdsProvider>
-                  <ChecklistProvider>
-                    <IncubationProvider>
-                      <RootLayoutNav />
-                    </IncubationProvider>
-                  </ChecklistProvider>
-                </BirdsProvider>
+                <AuthAwareProviders>
+                  <RootLayoutNav />
+                </AuthAwareProviders>
               </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

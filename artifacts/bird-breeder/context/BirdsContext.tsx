@@ -36,24 +36,32 @@ const BirdsContext = createContext<BirdsContextType>({
   clearAll: async () => {},
 });
 
-const STORAGE_KEY = "birds_data_v2";
+// Each user gets their own isolated storage key — logging in with a
+// different email starts with a completely empty bird list.
+function storageKey(email: string | null) {
+  return email ? `birds_v3_${email}` : "birds_v3_guest";
+}
 
-export function BirdsProvider({ children }: { children: React.ReactNode }) {
+export function BirdsProvider({
+  userEmail,
+  children,
+}: {
+  userEmail: string | null;
+  children: React.ReactNode;
+}) {
   const [birds, setBirds] = useState<Bird[]>([]);
 
+  // Reload birds whenever the logged-in user changes
   useEffect(() => {
-    const load = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) setBirds(JSON.parse(raw));
-      } catch (_) {}
-    };
-    load();
-  }, []);
+    setBirds([]);
+    AsyncStorage.getItem(storageKey(userEmail)).then((raw) => {
+      if (raw) setBirds(JSON.parse(raw));
+    }).catch(() => {});
+  }, [userEmail]);
 
   const save = async (updated: Bird[]) => {
     setBirds(updated);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await AsyncStorage.setItem(storageKey(userEmail), JSON.stringify(updated));
   };
 
   const canAddBird = birds.length < MAX_BIRDS;
@@ -79,7 +87,7 @@ export function BirdsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearAll = async () => {
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(storageKey(userEmail));
     setBirds([]);
   };
 

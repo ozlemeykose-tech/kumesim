@@ -49,8 +49,12 @@ export default function LoginScreen() {
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await login(email.toLowerCase().trim());
-      router.replace("/(tabs)");
+      const result = await login(email.toLowerCase().trim(), password);
+      if (!result.success) {
+        setError(result.error ?? "Giriş başarısız.");
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (_) {
       setError("Bir hata oluştu. Tekrar deneyin.");
     } finally {
@@ -109,7 +113,7 @@ export default function LoginScreen() {
 
           <View style={styles.logoWrap}>
             <View style={styles.logoCircle}>
-              <MaterialCommunityIcons name="feather" size={52} color="#FFFFFF" />
+              <MaterialCommunityIcons name="bird" size={72} color="#FFFFFF" />
             </View>
           </View>
           <Text style={styles.appName}>Kümesim</Text>
@@ -130,8 +134,8 @@ export default function LoginScreen() {
         </LinearGradient>
 
         <View style={[styles.formCard, { paddingBottom: insets.bottom + 40 }]}>
-          <Text style={styles.formTitle}>Hoş Geldiniz</Text>
-          <Text style={styles.formSub}>Devam etmek için giriş yapın</Text>
+          <Text style={styles.formTitle}>KÜMESİME HOŞ GELDİN</Text>
+          <Text style={styles.formSub}>Kaydet, Takip Et. Dijital kümesin artık cebinde!</Text>
 
           <Text style={styles.inputLabel}>E-posta</Text>
           <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
@@ -230,9 +234,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   logoCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 28,
+    width: 120,
+    height: 120,
+    borderRadius: 36,
     backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
