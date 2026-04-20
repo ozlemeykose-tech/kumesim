@@ -1,0 +1,113 @@
+import React, { useState } from 'react';
+
+const KumesimApp = () => {
+  // 1. State Management
+  const [birds, setBirds] = useState([
+    { id: '1', name: 'Kuş #1', species: 'Muhabbet Kuşu', image: null }
+  ]);
+  const [inputName, setInputName] = useState('');
+
+  // 2. DELETE LOGIC (Fixing the "inactive button" issue)
+  const handleDelete = (id) => {
+    // Filter out the bird by ID and update the state
+    const filteredBirds = birds.filter(bird => bird.id !== id);
+    setBirds(filteredBirds);
+    console.log(`Bird with ID ${id} deleted. Remaining: ${filteredBirds.length}`);
+  };
+
+  // 3. AUTO-NAMING LOGIC (For "Hızlı Ekle")
+  const handleQuickAdd = () => {
+    let finalName = inputName.trim();
+    
+    // If name is empty, auto-assign "Kuş #X"
+    if (finalName === "") {
+      finalName = `Kuş #${birds.length + 1}`;
+    }
+
+    const newBird = {
+      id: Date.now().toString(), // Unique ID using timestamp
+      name: finalName,
+      species: 'Muhabbet Kuşu',
+      image: null
+    };
+
+    setBirds([...birds, newBird]);
+    setInputName(''); // Reset input after adding
+  };
+
+  return (
+    <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Header - Fixed the "14/25" count logic */}
+      <div className="header" style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>Kuşlarım</h2>
+        <p>{birds.length} kuş {birds.length}/25</p>
+        
+        {/* REMOVED: The green Floating Action Button (+) is gone from here */}
+      </div>
+
+      {/* Bird List */}
+      <div className="bird-list" style={{ padding: '10px' }}>
+        {birds.map((bird) => (
+          <div key={bird.id} className="bird-card" style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '15px', 
+            marginBottom: '15px', 
+            padding: '15px',
+            position: 'relative' 
+          }}>
+            
+            {/* DELETE BUTTON (The Red Trash Icon) */}
+            <button 
+              onClick={() => handleDelete(bird.id)}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                backgroundColor: '#e74c3c',
+                border: 'none',
+                borderRadius: '50%',
+                padding: '10px',
+                cursor: 'pointer',
+                color: 'white'
+              }}
+            >
+              🗑️
+            </button>
+
+            <div className="bird-info">
+              <h3>{bird.name}</h3>
+              <p>{bird.species}</p>
+            </div>
+
+            <div className="actions" style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button className="btn-soy">SOY AĞACI</button>
+              <button className="btn-whatsapp">WhatsApp Paylaş</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* BOTTOM NAVIGATION - Use this for adding */}
+      <div className="bottom-nav" style={{ 
+        position: 'fixed', 
+        bottom: 0, 
+        width: '100%', 
+        display: 'flex', 
+        justifyContent: 'space-around',
+        backgroundColor: 'white',
+        padding: '10px 0'
+      }}>
+        <button>Kütüphane</button>
+        <button 
+          onClick={handleQuickAdd} 
+          style={{ fontWeight: 'bold', color: '#27ae60' }}
+        >
+          ➕ Hızlı Ekle
+        </button>
+        <button>Ayarlar</button>
+      </div>
+    </div>
+  );
+};
+
+export default KumesimApp;
