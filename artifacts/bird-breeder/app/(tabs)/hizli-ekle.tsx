@@ -214,7 +214,7 @@ export default function HizliEkleScreen() {
           ))}
         </View>
 
-        <Text style={styles.label}>Halka No</Text>
+        <Text style={styles.label}>BİLEZİK NO</Text>
         <TextInput
           style={styles.input}
           placeholder="örn. AU24-12345"

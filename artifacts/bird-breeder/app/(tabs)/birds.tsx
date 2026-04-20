@@ -67,18 +67,34 @@ async function pickImage(source: "camera" | "gallery"): Promise<string | null> {
     return pickFromGallery();
   }
   try {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    // 1) Read current permission state
+    let perm = await ImagePicker.getCameraPermissionsAsync();
+    // 2) If undetermined, explicitly request it (this triggers the system dialog)
+    if (perm.status !== "granted" && perm.canAskAgain) {
+      perm = await ImagePicker.requestCameraPermissionsAsync();
+    }
     if (perm.status !== "granted") {
       return new Promise((resolve) => {
+        const buttons: any[] = [
+          { text: "İptal", style: "cancel", onPress: () => resolve(null) },
+          { text: "Galeriyi Aç", onPress: async () => resolve(await pickFromGallery()) },
+        ];
+        if (!perm.canAskAgain) {
+          // Permission permanently denied → guide user to system Settings
+          buttons.push({
+            text: "Ayarları Aç",
+            onPress: async () => {
+              try { await Linking.openSettings(); } catch {}
+              resolve(null);
+            },
+          });
+        }
         Alert.alert(
-          "Kamera İzni Yok",
+          "Kamera İzni Gerekli",
           perm.canAskAgain
-            ? "Kamera izni verilmedi. Galeriyi kullanmak ister misiniz?"
-            : "Kamera iznini Ayarlar'dan açabilirsiniz. Şimdi galeriyi açayım mı?",
-          [
-            { text: "İptal", style: "cancel", onPress: () => resolve(null) },
-            { text: "Galeriyi Aç", onPress: async () => resolve(await pickFromGallery()) },
-          ]
+            ? "Kameraya erişim izni verilmedi. Lütfen izin verin veya galeriyi kullanın."
+            : "Kamera izni reddedildi. Cihaz Ayarlarından bu uygulamaya kamera iznini açabilirsiniz.",
+          buttons
         );
       });
     }
@@ -136,7 +152,7 @@ async function shareViaWhatsApp(bird: Bird, birds: Bird[]) {
     `*${displayName}*`,
     `Tür: ${bird.species || "—"}`,
     `Irk: ${bird.breed || "—"}`,
-    `Halka No: ${bird.ringNo || "—"}`,
+    `Bilezik No: ${bird.ringNo || "—"}`,
     `Cinsiyet: ${bird.gender === "male" ? "Erkek" : bird.gender === "female" ? "Dişi" : "Bilinmiyor"}`,
     lineage ? `Soy: ${lineage}` : null,
     bird.notes ? `Not: ${bird.notes}` : null,
@@ -614,7 +630,7 @@ function BirdDetailModal({
             <View style={styles.divider} />
 
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>Halka No</Text>
+              <Text style={styles.rowLabel}>Bilezik No</Text>
               <Text style={styles.rowValue}>{bird.ringNo || "—"}</Text>
             </View>
             <View style={styles.row}>
@@ -697,6 +713,8 @@ function BirdEditModal({
   const [motherId, setMotherId] = useState(bird?.motherId ?? "");
   const [imageUri, setImageUri] = useState(bird?.imageUri ?? "");
   const [notes, setNotes] = useState(bird?.notes ?? "");
+  // "Kardeş Seç" — sibling selection used to flag intentional inbreeding pairings
+  const [siblingId, setSiblingId] = useState("");
 
   React.useEffect(() => {
     setName(bird?.name ?? "");
@@ -708,10 +726,17 @@ function BirdEditModal({
     setMotherId(bird?.motherId ?? "");
     setImageUri(bird?.imageUri ?? "");
     setNotes(bird?.notes ?? "");
+    setSiblingId("");
   }, [bird, visible]);
 
   const males = birds.filter((b) => b.gender === "male" && b.id !== bird?.id);
   const females = birds.filter((b) => b.gender === "female" && b.id !== bird?.id);
+  const allOthers = birds.filter((b) => b.id !== bird?.id);
+
+  // Inbreeding flag — true if (mother+father are related) OR a sibling is explicitly selected
+  const inbreedingDetected =
+    (!!fatherId && !!motherId && areRelated(birds, fatherId, motherId)) ||
+    !!siblingId;
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -871,7 +896,7 @@ function BirdEditModal({
               onChangeText={setBreed}
             />
 
-            <Text style={styles.label}>Halka No</Text>
+            <Text style={styles.label}>BİLEZİK NO</Text>
             <TextInput
               style={styles.input}
               placeholder="örn. AU24-12345"
@@ -990,27 +1015,58 @@ function BirdEditModal({
               </>
             )}
 
-            {fatherId && motherId && areRelated(birds, fatherId, motherId) && (
+            {allOthers.length > 0 && (
+              <>
+                <Text style={styles.label}>Kardeş Seç (opsiyonel)</Text>
+                <View style={styles.chipRow}>
+                  {allOthers.map((s) => (
+                    <Pressable
+                      key={s.id}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: siblingId === s.id ? "#DC2626" + "18" : "transparent",
+                          borderColor: siblingId === s.id ? "#DC2626" : colors.border,
+                        },
+                      ]}
+                      onPress={() => setSiblingId(siblingId === s.id ? "" : s.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: siblingId === s.id ? "#DC2626" : colors.mutedForeground },
+                        ]}
+                      >
+                        {s.name?.trim() ? s.name : `Kuş #${s.id.slice(-6)}`}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {inbreedingDetected && (
               <View style={{
                 backgroundColor: "#FEF2F2",
-                borderWidth: 1,
-                borderColor: "#FCA5A5",
+                borderWidth: 1.5,
+                borderColor: "#DC2626",
                 borderRadius: 12,
-                padding: 12,
-                marginTop: 12,
+                padding: 14,
+                marginTop: 14,
                 flexDirection: "row",
                 gap: 10,
                 alignItems: "flex-start",
               }}>
-                <Ionicons name="warning" size={20} color="#DC2626" />
+                <Ionicons name="warning" size={22} color="#DC2626" />
                 <Text style={{
                   flex: 1,
                   color: "#991B1B",
-                  fontFamily: "Inter_600SemiBold",
+                  fontFamily: "Inter_700Bold",
+                  fontWeight: "700",
                   fontSize: 13,
-                  lineHeight: 18,
+                  lineHeight: 19,
                 }}>
-                  Akraba eşleşmesi! Sakat yavru riski olabilir.
+                  Dikkat: Akraba eşleşmesi! Sakat yavru riski ve genetik bozukluk olasılığı yüksektir.
                 </Text>
               </View>
             )}
