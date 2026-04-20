@@ -125,17 +125,21 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
   };
 
   const handleDelete = () => {
-    Alert.alert("Grubu Sil", `${batch.birdName} grubunu sil?`, [
-      { text: "Iptal", style: "cancel" },
-      {
-        text: "Sil",
-        style: "destructive",
-        onPress: async () => {
-          await deleteBatch(batch.id);
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      "Kaydı Sil",
+      `"${batch.birdName}" kuluçka kaydı kalıcı olarak silinsin mi?`,
+      [
+        { text: "İptal", style: "cancel" },
+        {
+          text: "Sil",
+          style: "destructive",
+          onPress: async () => {
+            await deleteBatch(batch.id);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const pct = Math.round(progress * 100);

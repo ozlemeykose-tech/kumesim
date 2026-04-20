@@ -1202,25 +1202,33 @@ export default function BirdsScreen() {
     setEditingBird(undefined);
   };
 
+  const handleDeleteBird = (bird: Bird) => {
+    Alert.alert(
+      "Kuşu Sil",
+      `"${bird.name}" kalıcı olarak silinsin mi?`,
+      [
+        { text: "İptal", style: "cancel" },
+        {
+          text: "Sil",
+          style: "destructive",
+          onPress: async () => {
+            await deleteBird(bird.id);
+            if (detailBird?.id === bird.id) setDetailBird(null);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          },
+        },
+      ]
+    );
+  };
+
   const handleLongPress = (bird: Bird) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert("Kusu Sil", `${bird.name} silinsin mi?`, [
-      { text: "Iptal", style: "cancel" },
-      {
-        text: "Sil",
-        style: "destructive",
-        onPress: async () => {
-          await deleteBird(bird.id);
-          if (detailBird?.id === bird.id) setDetailBird(null);
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        },
-      },
-    ]);
+    handleDeleteBird(bird);
   };
 
   const handleAdd = () => {
     if (!canAddBird) {
-      Alert.alert("Limit Doldu", `En fazla ${MAX_BIRDS} kus eklenebilir.`);
+      Alert.alert("Limit Doldu", `En fazla ${MAX_BIRDS} kuş eklenebilir.`);
       return;
     }
     setEditingBird(undefined);
@@ -1323,7 +1331,7 @@ export default function BirdsScreen() {
                 setEditModalVisible(true);
               }}
               onLineage={() => router.push({ pathname: "/(tabs)/lineage" as any, params: { birdId: item.id } })}
-              onDelete={() => handleLongPress(item)}
+              onDelete={() => handleDeleteBird(item)}
             />
           </Pressable>
         )}
