@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -49,6 +50,29 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+
+  // Web-only: lock the page language to Turkish and disable browser auto-translation.
+  // Without this, Chrome can mistranslate "Çar" → "araba", "Per" → "başına",
+  // "Ayarlar" → "Sahalar/Settings" etc.
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    try {
+      document.documentElement.setAttribute("lang", "tr");
+      document.documentElement.setAttribute("translate", "no");
+      const ensureMeta = (name: string, content: string) => {
+        let m = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+        if (!m) {
+          m = document.createElement("meta");
+          m.setAttribute("name", name);
+          document.head.appendChild(m);
+        }
+        m.setAttribute("content", content);
+      };
+      ensureMeta("google", "notranslate");
+      // Add a class so CSS .notranslate also blocks Google translate
+      document.documentElement.classList.add("notranslate");
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
