@@ -42,7 +42,7 @@ function AuthAwareProviders({ children }: { children: React.ReactNode }) {
   return (
     <BirdsProvider userEmail={userEmail}>
       <ChecklistProvider>
-        <IncubationProvider>
+        <IncubationProvider userEmail={userEmail}>
           {children}
         </IncubationProvider>
       </ChecklistProvider>

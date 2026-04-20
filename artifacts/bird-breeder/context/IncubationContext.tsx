@@ -12,7 +12,7 @@ export interface IncubationBatch {
   incubationDays: number;
   notes?: string;
   status: "active" | "hatched" | "failed";
-  notificationSent?: boolean;
+  notificationScheduled?: boolean;
 }
 
 export const SPECIES_LIST: { label: string; days: number }[] = [
@@ -48,31 +48,42 @@ const IncubationContext = createContext<IncubationContextType>({
   clearAll: async () => {},
 });
 
-const STORAGE_KEY = "incubation_data_v2";
-
-async function requestNotificationPermission() {
-  if (Platform.OS === "web") return false;
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === "granted";
+function storageKey(email: string | null) {
+  return email ? `incubation_v3_${email}` : "incubation_v3_guest";
 }
 
-async function sendHatchNotification(batchName: string) {
+// Schedule a local notification for 1 day before the hatch date.
+async function scheduleHatchAlert(batchName: string, hatchDate: Date) {
   if (Platform.OS === "web") return;
   try {
-    const granted = await requestNotificationPermission();
-    if (!granted) return;
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") return;
+
+    const triggerDate = new Date(hatchDate);
+    triggerDate.setDate(triggerDate.getDate() - 1); // 1 day before
+    triggerDate.setHours(9, 0, 0, 0); // 09:00 morning
+
+    // Only schedule if the trigger is still in the future
+    if (triggerDate <= new Date()) return;
+
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Kümesinden haber var! \uD83D\uDC23",
-        body: `Kümesinden haber var: Yeni bir bebek geliyor! (${batchName})`,
+        title: "Müjde! 🐣",
+        body: `Kümesinden haber ver, yumurtanı kontrol et! (${batchName})`,
         sound: true,
       },
-      trigger: null,
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
     });
   } catch (_) {}
 }
 
-export function IncubationProvider({ children }: { children: React.ReactNode }) {
+export function IncubationProvider({
+  userEmail,
+  children,
+}: {
+  userEmail: string | null;
+  children: React.ReactNode;
+}) {
   const [batches, setBatches] = useState<IncubationBatch[]>([]);
 
   useEffect(() => {
@@ -87,43 +98,35 @@ export function IncubationProvider({ children }: { children: React.ReactNode }) 
         }),
       });
     }
-
-    const load = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) setBatches(JSON.parse(raw));
-      } catch (_) {}
-    };
-    load();
   }, []);
 
+  // Reload when user changes — each account sees only their own records
   useEffect(() => {
-    batches.forEach(async (batch) => {
-      if (batch.status === "active" && !batch.notificationSent) {
-        const progress = getProgress(batch);
-        if (progress >= 1) {
-          await sendHatchNotification(batch.birdName);
-          const updated = batches.map((b) =>
-            b.id === batch.id ? { ...b, notificationSent: true } : b
-          );
-          setBatches(updated);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        }
-      }
-    });
-  }, [batches]);
+    setBatches([]);
+    AsyncStorage.getItem(storageKey(userEmail)).then((raw) => {
+      if (raw) setBatches(JSON.parse(raw));
+    }).catch(() => {});
+  }, [userEmail]);
 
   const save = async (updated: IncubationBatch[]) => {
     setBatches(updated);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await AsyncStorage.setItem(storageKey(userEmail), JSON.stringify(updated));
   };
 
   const addBatch = async (batch: Omit<IncubationBatch, "id">) => {
     const newBatch: IncubationBatch = {
       ...batch,
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      notificationScheduled: false,
     };
-    await save([...batches, newBatch]);
+
+    // Calculate hatch date and schedule the 1-day-before notification
+    const start = new Date(newBatch.startDate);
+    const hatchDate = new Date(start);
+    hatchDate.setDate(hatchDate.getDate() + newBatch.incubationDays);
+    await scheduleHatchAlert(newBatch.birdName, hatchDate);
+
+    await save([...batches, { ...newBatch, notificationScheduled: true }]);
   };
 
   const updateBatch = async (id: string, updates: Partial<IncubationBatch>) => {
@@ -153,13 +156,12 @@ export function IncubationProvider({ children }: { children: React.ReactNode }) 
   const getTurkishStatus = (batch: IncubationBatch): TurkishStatus => {
     if (batch.status === "hatched") return "Çıktı";
     if (batch.status === "failed") return "Başarısız";
-    const progress = getProgress(batch);
-    if (progress >= 0.8) return "Çıkım Bekleniyor";
+    if (getProgress(batch) >= 0.8) return "Çıkım Bekleniyor";
     return "Yumurtada";
   };
 
   const clearAll = async () => {
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(storageKey(userEmail));
     setBatches([]);
   };
 
