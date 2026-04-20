@@ -229,6 +229,15 @@ function BirdCard({
   const displayName = bird.name?.trim() ? bird.name : `Kuş #${bird.id.slice(-6)}`;
   const subtitle = bird.species || bird.breed || "Tür belirtilmemiş";
 
+  // A bird is "complete" only if it has the core info filled in.
+  // Otherwise, show an exclamation indicator prompting the user to finish it.
+  const missingFields: string[] = [];
+  if (!bird.imageUri) missingFields.push("Fotoğraf");
+  if (!bird.species) missingFields.push("Tür");
+  if (bird.gender === "unknown") missingFields.push("Cinsiyet");
+  if (!bird.ringNo) missingFields.push("Bilezik No");
+  const isIncomplete = missingFields.length > 0;
+
   const styles = StyleSheet.create({
     card: {
       backgroundColor: colors.card,
@@ -270,6 +279,46 @@ function BirdCard({
       shadowOpacity: 0.25,
       shadowRadius: 4,
       elevation: 4,
+    },
+    incompleteBadge: {
+      position: "absolute",
+      bottom: 10, right: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: "rgba(245,158,11,0.95)",
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+      elevation: 3,
+    },
+    incompleteText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontFamily: "Inter_700Bold",
+      fontWeight: "700",
+    },
+    incompleteRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 10,
+      backgroundColor: "#FEF3C7",
+      borderWidth: 1,
+      borderColor: "#FBBF24",
+    },
+    incompleteHint: {
+      flex: 1,
+      fontSize: 11,
+      color: "#92400E",
+      fontFamily: "Inter_500Medium",
     },
     ringTagText: {
       color: "#FFFFFF",
@@ -379,6 +428,12 @@ function BirdCard({
           >
             <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
           </Pressable>
+          {isIncomplete && (
+            <View style={styles.incompleteBadge}>
+              <Ionicons name="alert-circle" size={14} color="#FFFFFF" />
+              <Text style={styles.incompleteText}>Eksik</Text>
+            </View>
+          )}
         </View>
       </Pressable>
 
@@ -388,6 +443,15 @@ function BirdCard({
           <View style={styles.genderDot} />
         </View>
         <Text style={styles.sub} numberOfLines={1}>{subtitle}</Text>
+
+        {isIncomplete && (
+          <Pressable style={styles.incompleteRow} onPress={onEdit}>
+            <Ionicons name="alert-circle" size={14} color="#92400E" />
+            <Text style={styles.incompleteHint} numberOfLines={1}>
+              Eksik bilgi: {missingFields.join(", ")}
+            </Text>
+          </Pressable>
+        )}
 
         <Pressable
           style={({ pressed }) => [styles.soyBtn, pressed && { opacity: 0.85 }]}

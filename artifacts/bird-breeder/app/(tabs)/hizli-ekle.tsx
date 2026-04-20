@@ -140,11 +140,12 @@ export default function HizliEkleScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert("Uyarı", "Kuş adı gereklidir."); return; }
     if (!canAddBird) { Alert.alert("Limit Doldu", `En fazla ${MAX_BIRDS} kuş eklenebilir.`); return; }
     setSaving(true);
+    // Auto-name when the user leaves the name blank: "Kuş #1", "Kuş #2", ...
+    const finalName = name.trim() || `Kuş #${birds.length + 1}`;
     const result = await addBird({
-      name: name.trim(), ringNo, breed, species, gender, imageUri, notes, motherId, fatherId,
+      name: finalName, ringNo, breed, species, gender, imageUri, notes, motherId, fatherId,
     });
     setSaving(false);
     if (!result.success) { Alert.alert("Hata", result.reason ?? "Kuş eklenemedi."); return; }
@@ -235,10 +236,10 @@ export default function HizliEkleScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Kuş Adı *</Text>
+        <Text style={styles.label}>Kuş Adı</Text>
         <TextInput
           style={styles.input}
-          placeholder="Kuşun adı..."
+          placeholder={`Boş bırakırsanız otomatik: Kuş #${birds.length + 1}`}
           placeholderTextColor={colors.mutedForeground}
           value={name}
           onChangeText={setName}
@@ -374,9 +375,9 @@ export default function HizliEkleScreen() {
         />
 
         <Pressable
-          style={[styles.saveBtn, (!name.trim() || saving) && { opacity: 0.5 }]}
+          style={[styles.saveBtn, saving && { opacity: 0.5 }]}
           onPress={handleSave}
-          disabled={!name.trim() || saving}
+          disabled={saving}
         >
           <Text style={styles.saveBtnText}>
             {saving ? "Kaydediliyor..." : "Kuş Kaydet"}
