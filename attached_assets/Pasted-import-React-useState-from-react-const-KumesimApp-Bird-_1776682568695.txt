@@ -1,0 +1,110 @@
+import React, { useState } from 'react';
+
+const KumesimApp = () => {
+  // Bird list state
+  const [birds, setBirds] = useState([
+    { id: '1', name: 'Hdhd', species: 'Muhabbet Kuşu', image: 'bird_url' },
+    { id: '2', name: 'Hdhehe', species: 'Muhabbet Kuşu', image: null }
+  ]);
+
+  // 1. DELETE LOGIC (Fixing the inactive trash button)
+  const deleteBird = (id) => {
+    const updatedBirds = birds.filter(bird => bird.id !== id);
+    setBirds(updatedBirds);
+    console.log("Bird removed. Current count:", updatedBirds.length);
+  };
+
+  // 2. QUICK ADD LOGIC (Auto-naming)
+  const quickAddBird = () => {
+    const newBird = {
+      id: Date.now().toString(),
+      name: `Kuş #${birds.length + 1}`, // Auto-name if no name provided
+      species: 'Muhabbet Kuşu',
+      image: null
+    };
+    setBirds([...birds, newBird]);
+  };
+
+  return (
+    <div style={{ backgroundColor: '#f5f7f8', minHeight: '100vh' }}>
+      {/* HEADER SECTION - REMOVED THE FLOATING '+' BUTTON */}
+      <div style={{ padding: '20px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Kuşlarım</h1>
+        <p style={{ color: '#666' }}>{birds.length} kuş <span style={{ color: '#27ae60' }}>{birds.length}/25</span></p>
+      </div>
+
+      {/* BIRD LIST */}
+      <div style={{ padding: '0 15px' }}>
+        {birds.map((bird) => (
+          <div key={bird.id} style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '20px', 
+            marginBottom: '15px', 
+            overflow: 'hidden',
+            position: 'relative',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+          }}>
+            
+            {/* DELETE BUTTON - Now Active */}
+            <button 
+              onClick={() => deleteBird(bird.id)}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                backgroundColor: '#ff4d4d',
+                border: 'none',
+                borderRadius: '50%',
+                width: '35px',
+                height: '35px',
+                color: 'white',
+                cursor: 'pointer',
+                zIndex: 10
+              }}
+            >
+              🗑️
+            </button>
+
+            {/* Bird Card Content */}
+            <div style={{ padding: '15px' }}>
+              <div style={{ backgroundColor: '#e0e0e0', height: '150px', borderRadius: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                {bird.image ? <img src={bird.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🐦'}
+              </div>
+              <h3 style={{ margin: '10px 0 5px 0' }}>{bird.name}</h3>
+              <p style={{ color: '#888', fontSize: '14px' }}>{bird.species}</p>
+              
+              <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+                <button style={{ flex: 1, padding: '12px', borderRadius: '10px', backgroundColor: '#2d6a4f', color: 'white', border: 'none', fontWeight: 'bold' }}>SOY AĞACI</button>
+                <button style={{ flex: 1, padding: '12px', borderRadius: '10px', backgroundColor: '#25d366', color: 'white', border: 'none', fontWeight: 'bold' }}>WhatsApp Paylaş</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* BOTTOM NAVIGATION - THE ONLY ADD BUTTON IS HERE */}
+      <div style={{ 
+        position: 'fixed', 
+        bottom: 0, 
+        width: '100%', 
+        height: '70px',
+        backgroundColor: 'white', 
+        display: 'flex', 
+        justifyContent: 'space-around', 
+        alignItems: 'center',
+        borderTop: '1px solid #eee'
+      }}>
+        <div style={{ textAlign: 'center', color: '#666' }}>📚 Kütüphane</div>
+        <div 
+          onClick={quickAddBird} 
+          style={{ textAlign: 'center', color: '#2d6a4f', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          ➕ Hızlı Ekle
+        </div>
+        <div style={{ textAlign: 'center', color: '#666' }}>⚙️ Ayarlar</div>
+      </div>
+    </div>
+  );
+};
+
+export default KumesimApp;

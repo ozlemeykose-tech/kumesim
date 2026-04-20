@@ -1307,12 +1307,6 @@ export default function BirdsScreen() {
             <Text style={styles.limitBadge}>{birds.length}/{MAX_BIRDS}</Text>
           </View>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
-          onPress={handleAdd}
-        >
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </Pressable>
       </View>
 
       <FlatList
