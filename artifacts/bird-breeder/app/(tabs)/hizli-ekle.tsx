@@ -21,7 +21,7 @@ import { MAX_BIRDS, useBirds } from "@/context/BirdsContext";
 import { useColors } from "@/hooks/useColors";
 
 const SPECIES_OPTIONS = [
-  "Muhabbet Kuşu", "Sultan Papağanı", "Kanarya", "Güvercin", "Hint Bülbülü", "Fink", "Diğer",
+  "Muhabbet Kuşu", "Sultan Papağanı", "Kanarya", "Güvercin", "Hint Bülbülü", "Diğer",
 ];
 
 type Gender = "male" | "female" | "unknown";

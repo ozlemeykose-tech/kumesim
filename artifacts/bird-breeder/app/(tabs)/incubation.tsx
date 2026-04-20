@@ -19,11 +19,25 @@ import { useBirds } from "@/context/BirdsContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 
+// Kuluçka uses a warm palette of yellow, orange, and green
+// to symbolize birth and nature.
+const KULUCKA = {
+  amber: "#F59E0B",       // active incubation (yellow-amber)
+  orange: "#EA580C",      // hatching soon (warm orange)
+  green: "#65A30D",       // hatched (fresh nature green)
+  red: "#DC2626",         // failed
+  cream: "#FFF7ED",       // soft warm background
+  butter: "#FEF3C7",      // pale yellow background
+  peach: "#FFEDD5",       // pale orange tint
+  amberInk: "#B45309",    // dark amber for text on cream
+  greenInk: "#3F6212",    // dark green for text on cream
+};
+
 const STATUS_COLORS: Record<string, string> = {
-  Yumurtada: "#2D7A4F",
-  "Cikım Bekleniyor": "#f59e0b",
-  "Cıktı": "#22c55e",
-  Basarisiz: "#ef4444",
+  Yumurtada: KULUCKA.amber,
+  "Cikım Bekleniyor": KULUCKA.orange,
+  "Cıktı": KULUCKA.green,
+  Basarisiz: KULUCKA.red,
 };
 
 function ProgressBar({ progress, color }: { progress: number; color: string }) {
@@ -94,12 +108,12 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
   };
   const statusColor =
     batch.status === "hatched"
-      ? "#22c55e"
+      ? KULUCKA.green
       : batch.status === "failed"
-      ? "#ef4444"
+      ? KULUCKA.red
       : progress >= 0.8
-      ? "#f59e0b"
-      : colors.primary;
+      ? KULUCKA.orange
+      : KULUCKA.amber;
 
   const handleStatusChange = () => {
     Alert.alert("Durum Guncelle", "Bu yuva icin durum:", [
@@ -138,8 +152,10 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
       shadowOpacity: 0.07,
       shadowRadius: 6,
       elevation: 2,
+      borderWidth: 1,
+      borderColor: KULUCKA.butter,
     },
-    topStrip: { height: 5, backgroundColor: statusColor },
+    topStrip: { height: 6, backgroundColor: statusColor },
     content: { padding: 16 },
     headerRow: {
       flexDirection: "row",
@@ -176,16 +192,18 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
     statsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
     statBox: {
       flex: 1,
-      backgroundColor: colors.muted,
+      backgroundColor: KULUCKA.cream,
       borderRadius: 10,
       padding: 10,
       alignItems: "center",
+      borderWidth: 1,
+      borderColor: KULUCKA.peach,
     },
     statVal: {
       fontSize: 18,
       fontWeight: "700" as const,
       fontFamily: "Inter_700Bold",
-      color: colors.foreground,
+      color: KULUCKA.amberInk,
     },
     statLabel: {
       fontSize: 10,
@@ -260,25 +278,27 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
         </View>
 
         <View style={{
-          backgroundColor: "#E8F1EC",
+          backgroundColor: KULUCKA.butter,
           borderRadius: 10,
           padding: 10,
           marginBottom: 12,
           flexDirection: "row",
           alignItems: "center",
           gap: 8,
+          borderWidth: 1,
+          borderColor: KULUCKA.peach,
         }}>
-          <Ionicons name="calendar" size={16} color="#2D7A4F" />
+          <Ionicons name="calendar" size={16} color={KULUCKA.orange} />
           <View style={{ flex: 1 }}>
             <Text style={{
               fontSize: 11,
-              color: "#5A7066",
+              color: KULUCKA.amberInk,
               fontFamily: "Inter_500Medium",
               marginBottom: 1,
             }}>Tahmini Çıkım Tarihi</Text>
             <Text style={{
               fontSize: 14,
-              color: "#1B5E37",
+              color: KULUCKA.amberInk,
               fontFamily: "Inter_700Bold",
               fontWeight: "700",
             }}>{expectedHatchDate}</Text>
@@ -288,7 +308,7 @@ function BatchCard({ batch }: { batch: IncubationBatch }) {
         {batch.status === "hatched" && (
           <Pressable
             style={({ pressed }) => [{
-              backgroundColor: "#2D7A4F",
+              backgroundColor: KULUCKA.green,
               borderRadius: 12,
               paddingVertical: 12,
               alignItems: "center",
@@ -416,28 +436,30 @@ function AddBatchModal({
     },
     speciesChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
     daysBadge: {
-      backgroundColor: colors.secondary,
+      backgroundColor: KULUCKA.cream,
       borderRadius: 10,
       padding: 12,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       marginBottom: 8,
+      borderWidth: 1,
+      borderColor: KULUCKA.peach,
     },
     daysLabel: {
       fontSize: 14,
       fontFamily: "Inter_500Medium",
-      color: colors.foreground,
+      color: KULUCKA.amberInk,
     },
     daysValue: {
       fontSize: 18,
       fontWeight: "700" as const,
       fontFamily: "Inter_700Bold",
-      color: colors.primary,
+      color: KULUCKA.orange,
     },
     row: { flexDirection: "row", gap: 12 },
     saveBtn: {
-      backgroundColor: colors.primary,
+      backgroundColor: KULUCKA.green,
       borderRadius: 14,
       paddingVertical: 14,
       alignItems: "center",
@@ -592,9 +614,14 @@ export default function IncubationScreen() {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: colors.primary,
+      backgroundColor: KULUCKA.orange,
       alignItems: "center",
       justifyContent: "center",
+      shadowColor: KULUCKA.orange,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 4,
     },
     listContent: {
       paddingHorizontal: 20,
@@ -667,9 +694,9 @@ export default function IncubationScreen() {
 
       <View style={styles.legendRow}>
         {[
-          { label: "Yumurtada", color: colors.primary },
-          { label: "Cikım Bekleniyor", color: "#f59e0b" },
-          { label: "Cıktı", color: "#22c55e" },
+          { label: "Yumurtada", color: KULUCKA.amber },
+          { label: "Çıkım Bekleniyor", color: KULUCKA.orange },
+          { label: "Çıktı", color: KULUCKA.green },
         ].map((l) => (
           <View key={l.label} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: l.color }]} />

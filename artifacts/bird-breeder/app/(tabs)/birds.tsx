@@ -215,12 +215,14 @@ function BirdCard({
   onShare,
   onEdit,
   onLineage,
+  onDelete,
 }: {
   bird: Bird;
   onPress: () => void;
   onShare: () => void;
   onEdit: () => void;
   onLineage: () => void;
+  onDelete: () => void;
 }) {
   const colors = useColors();
 
@@ -251,11 +253,23 @@ function BirdCard({
     birdImage: { width: "100%", height: 170 },
     ringTag: {
       position: "absolute",
-      top: 12, right: 12,
+      top: 12, left: 12,
       backgroundColor: "rgba(45,122,79,0.92)",
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 12,
+    },
+    deleteBtn: {
+      position: "absolute",
+      top: 10, right: 10,
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: "rgba(220,38,38,0.92)",
+      alignItems: "center", justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 4,
     },
     ringTagText: {
       color: "#FFFFFF",
@@ -357,6 +371,14 @@ function BirdCard({
               <Text style={styles.ringTagText}>{bird.ringNo}</Text>
             </View>
           )}
+          <Pressable
+            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.85 }]}
+            onPress={(e) => { e.stopPropagation?.(); onDelete(); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Kuşu Sil"
+          >
+            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+          </Pressable>
         </View>
       </Pressable>
 
@@ -1243,6 +1265,7 @@ export default function BirdsScreen() {
                 setEditModalVisible(true);
               }}
               onLineage={() => router.push({ pathname: "/(tabs)/lineage" as any, params: { birdId: item.id } })}
+              onDelete={() => handleLongPress(item)}
             />
           </Pressable>
         )}
