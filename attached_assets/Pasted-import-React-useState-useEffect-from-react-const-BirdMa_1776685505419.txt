@@ -1,0 +1,87 @@
+import React, { useState, useEffect } from 'react';
+
+const BirdManagement = () => {
+  // Main state for bird list
+  const [birds, setBirds] = useState([
+    { id: '1', name: 'Bird #1', species: 'Budgerigar' }
+  ]);
+  
+  const MAX_LIMIT = 25;
+
+  // DELETE LOGIC: Removes bird and updates count immediately
+  const handleDelete = (birdId) => {
+    // We use functional update to ensure we have the latest state
+    setBirds((prevBirds) => prevBirds.filter(bird => bird.id !== birdId));
+    console.log(`Deleted bird ID: ${birdId}`);
+  };
+
+  // QUICK ADD LOGIC: Auto-assigns name if empty
+  const handleQuickAdd = () => {
+    if (birds.length >= MAX_LIMIT) {
+      alert("Limit reached! Delete a bird to add more.");
+      return;
+    }
+
+    const nextNumber = birds.length + 1;
+    const newBird = {
+      id: Date.now().toString(),
+      name: `Kuş #${nextNumber}`,
+      species: 'Budgerigar',
+      isComplete: false
+    };
+
+    setBirds([...birds, newBird]);
+  };
+
+  // LOGOUT AND DELETE ACCOUNT LOGIC
+  const handleLogout = () => {
+    if(window.confirm("Are you sure you want to logout?")) {
+      // Logic for redirecting to login page
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if(window.confirm("WARNING: This will delete everything! Are you sure?")) {
+      // API call to delete user data
+    }
+  };
+
+  return (
+    <div className="app-main">
+      {/* HEADER SECTION (Removed Top + Button) */}
+      <div className="header-view">
+        <h1>Kuşlarım</h1>
+        <p className="badge-text">{birds.length} kuş {birds.length}/{MAX_LIMIT}</p>
+      </div>
+
+      {/* LIST SECTION */}
+      <div className="list-container">
+        {birds.map((bird) => (
+          <div key={bird.id} className="bird-card">
+            {/* TRASH BUTTON (Eraser) */}
+            <button className="delete-icon" onClick={() => handleDelete(bird.id)}>
+              🗑️
+            </button>
+            <h3>{bird.name}</h3>
+            <span>{bird.species}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* SETTINGS ACTIONS */}
+      <div className="settings-actions">
+        <button onClick={handleLogout}>Çıkış Yap</button>
+        <button onClick={handleDeleteAccount} style={{color: 'red'}}>Hesabı Sil</button>
+      </div>
+
+      {/* BOTTOM NAV - ONLY ADD BUTTON HERE */}
+      <nav className="bottom-navbar">
+        <button>Kütüphane</button>
+        <button onClick={handleQuickAdd} style={{color: 'green', fontWeight: 'bold'}}>➕ Hızlı Ekle</button>
+        <button>Ayarlar</button>
+      </nav>
+    </div>
+  );
+};
+
+export default BirdManagement;
