@@ -21,11 +21,13 @@ function RootLayoutNav() {
   const { isLoggedIn } = useAuth();
 
   useEffect(() => {
-    if (isLoggedIn) {
-      router.replace("/(tabs)");
-    } else {
-      router.replace("/login");
-    }
+    // Defer by one tick so Expo Router's navigator finishes mounting
+    // before we attempt to navigate. Without this, calling router.replace()
+    // synchronously on first render throws "navigate before mounting" error.
+    const id = setTimeout(() => {
+      router.replace(isLoggedIn ? "/(tabs)" : "/login");
+    }, 0);
+    return () => clearTimeout(id);
   }, [isLoggedIn]);
 
   return (
