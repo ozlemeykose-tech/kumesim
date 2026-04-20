@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -105,7 +104,7 @@ Son güncellenme: Nisan 2025
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { userEmail, logout } = useAuth();
+  const { userEmail, logout, deleteAccount } = useAuth();
   const { clearAll: clearBirds, birds } = useBirds();
   const { clearAll: clearChecklist } = useChecklist();
   const { clearAll: clearIncubation } = useIncubation();
@@ -118,19 +117,25 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       "Hesabı Sil",
-      "Tüm veriler kalıcı olarak silinecek. Emin misiniz?",
+      "Tüm kuş, kuluçka ve hesap verileri kalıcı olarak Firebase'den silinecek. Bu işlem geri alınamaz.",
       [
         { text: "İptal", style: "cancel" },
         {
-          text: "Evet, Sil",
+          text: "Evet, Kalıcı Sil",
           style: "destructive",
           onPress: async () => {
-            await clearBirds();
-            await clearChecklist();
-            await clearIncubation();
-            await AsyncStorage.clear();
-            await logout();
-            router.replace("/login");
+            try {
+              await clearBirds();
+              await clearIncubation();
+              await clearChecklist();
+              await deleteAccount();
+              router.replace("/login");
+            } catch (err: any) {
+              Alert.alert(
+                "Hata",
+                "Hesap silinirken sorun oluştu. Lütfen tekrar giriş yapıp tekrar deneyin."
+              );
+            }
           },
         },
       ]

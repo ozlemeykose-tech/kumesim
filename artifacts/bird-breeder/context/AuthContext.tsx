@@ -1,64 +1,120 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import {
+  User,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  deleteUser,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface AuthContextType {
+  user: User | null;
   isLoggedIn: boolean;
+  uid: string | null;
   userEmail: string | null;
+  loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
+  user: null,
   isLoggedIn: false,
+  uid: null,
   userEmail: null,
+  loading: true,
   login: async () => ({ success: false }),
   logout: async () => {},
+  resetPassword: async () => ({ success: false }),
+  deleteAccount: async () => {},
 });
 
-// Password stored per-email: "auth_pw_<email>"
-// First login with an email registers that password.
-// Every subsequent login must match it exactly.
-function pwKey(email: string) {
-  return `auth_pw_${email.toLowerCase().trim()}`;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem("auth_email").then((email) => {
-      if (email) { setUserEmail(email); setIsLoggedIn(true); }
-    }).catch(() => {});
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+    return unsub;
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
     const norm = email.toLowerCase().trim();
-    if (!norm || !password) return { success: false, error: "E-posta ve şifre gereklidir." };
-    if (password.length < 4) return { success: false, error: "Şifre en az 4 karakter olmalıdır." };
-
-    const stored = await AsyncStorage.getItem(pwKey(norm));
-    if (stored === null) {
-      // First time: register this password for the email
-      await AsyncStorage.setItem(pwKey(norm), password);
-    } else if (stored !== password) {
-      return { success: false, error: "Şifre hatalı. Lütfen tekrar deneyin." };
+    try {
+      await signInWithEmailAndPassword(auth, norm, password);
+      return { success: true };
+    } catch (signInErr: any) {
+      const code: string = signInErr.code ?? "";
+      if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+        try {
+          await createUserWithEmailAndPassword(auth, norm, password);
+          return { success: true };
+        } catch (regErr: any) {
+          if (regErr.code === "auth/email-already-in-use")
+            return { success: false, error: "Şifre hatalı. Lütfen tekrar deneyin." };
+          if (regErr.code === "auth/weak-password")
+            return { success: false, error: "Şifre çok zayıf, daha güçlü bir şifre seçin." };
+          return { success: false, error: "Giriş yapılamadı. Tekrar deneyin." };
+        }
+      }
+      if (code === "auth/wrong-password")
+        return { success: false, error: "Şifre hatalı. Lütfen tekrar deneyin." };
+      if (code === "auth/invalid-email")
+        return { success: false, error: "Geçersiz e-posta adresi." };
+      if (code === "auth/too-many-requests")
+        return { success: false, error: "Çok fazla deneme. Lütfen biraz bekleyin." };
+      return { success: false, error: "Giriş yapılamadı. Tekrar deneyin." };
     }
-
-    await AsyncStorage.setItem("auth_email", norm);
-    setUserEmail(norm);
-    setIsLoggedIn(true);
-    return { success: true };
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem("auth_email");
-    setUserEmail(null);
-    setIsLoggedIn(false);
+    await signOut(auth);
+  };
+
+  const resetPassword = async (
+    email: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await sendPasswordResetEmail(auth, email.toLowerCase().trim());
+      return { success: true };
+    } catch (err: any) {
+      if (err.code === "auth/user-not-found")
+        return { success: false, error: "Bu e-posta ile kayıtlı hesap bulunamadı." };
+      return { success: false, error: "E-posta gönderilemedi. Tekrar deneyin." };
+    }
+  };
+
+  const deleteAccount = async () => {
+    if (auth.currentUser) {
+      await deleteUser(auth.currentUser);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, userEmail, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoggedIn: !!user,
+        uid: user?.uid ?? null,
+        userEmail: user?.email ?? null,
+        loading,
+        login,
+        logout,
+        resetPassword,
+        deleteAccount,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

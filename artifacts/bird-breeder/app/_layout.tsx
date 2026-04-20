@@ -18,14 +18,15 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, loading } = useAuth();
 
   useEffect(() => {
+    if (loading) return;
     const id = setTimeout(() => {
       router.replace(isLoggedIn ? "/(tabs)" : "/login");
     }, 0);
     return () => clearTimeout(id);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, loading]);
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
@@ -35,14 +36,11 @@ function RootLayoutNav() {
   );
 }
 
-// Inner component so BirdsProvider can receive the live userEmail from AuthContext.
-// This ensures each account has its own isolated bird list.
 function AuthAwareProviders({ children }: { children: React.ReactNode }) {
-  const { userEmail } = useAuth();
   return (
-    <BirdsProvider userEmail={userEmail}>
+    <BirdsProvider>
       <ChecklistProvider>
-        <IncubationProvider userEmail={userEmail}>
+        <IncubationProvider>
           {children}
         </IncubationProvider>
       </ChecklistProvider>

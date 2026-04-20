@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -8,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -32,7 +30,7 @@ const BIRD_DECO = [
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -40,13 +38,6 @@ export default function LoginScreen() {
   const [passFocused, setPassFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // Password reset modal state
-  const [resetVisible, setResetVisible] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetPw, setResetPw] = useState("");
-  const [resetPw2, setResetPw2] = useState("");
-  const [resetError, setResetError] = useState("");
 
   const isValidEmail = (e: string) => /\S+@\S+\.\S+/.test(e);
   const canSubmit = isValidEmail(email) && password.length >= 4;
@@ -71,25 +62,21 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = () => {
-    setResetEmail(email);
-    setResetPw("");
-    setResetPw2("");
-    setResetError("");
-    setResetVisible(true);
-  };
-
-  const handleResetSubmit = async () => {
-    const norm = resetEmail.toLowerCase().trim();
-    if (!isValidEmail(norm)) { setResetError("Geçerli bir e-posta girin."); return; }
-    if (resetPw.length < 4) { setResetError("Yeni şifre en az 4 karakter olmalıdır."); return; }
-    if (resetPw !== resetPw2) { setResetError("Şifreler eşleşmiyor."); return; }
-    const key = `auth_pw_${norm}`;
-    const exists = await AsyncStorage.getItem(key);
-    if (!exists) { setResetError("Bu e-posta ile kayıtlı hesap bulunamadı."); return; }
-    await AsyncStorage.setItem(key, resetPw);
-    setResetVisible(false);
-    Alert.alert("Başarılı", "Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz.");
+  const handleForgotPassword = async () => {
+    const norm = email.toLowerCase().trim();
+    if (!isValidEmail(norm)) {
+      Alert.alert("Uyarı", "Lütfen önce e-posta adresinizi girin.");
+      return;
+    }
+    const result = await resetPassword(norm);
+    if (result.success) {
+      Alert.alert(
+        "E-posta Gönderildi",
+        `${norm} adresine şifre sıfırlama bağlantısı gönderildi. Lütfen gelen kutunuzu kontrol edin.`
+      );
+    } else {
+      Alert.alert("Hata", result.error ?? "E-posta gönderilemedi.");
+    }
   };
 
   return (
@@ -231,51 +218,6 @@ export default function LoginScreen() {
         </View>
       </ScrollView>
 
-      {/* Password reset modal */}
-      <Modal visible={resetVisible} transparent animationType="fade" onRequestClose={() => setResetVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Şifremi Sıfırla</Text>
-            <Text style={styles.modalSub}>Kayıtlı e-postanı gir ve yeni şifreni belirle.</Text>
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="E-posta"
-              placeholderTextColor="#9ca3af"
-              value={resetEmail}
-              onChangeText={(t) => { setResetEmail(t); setResetError(""); }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Yeni Şifre"
-              placeholderTextColor="#9ca3af"
-              value={resetPw}
-              onChangeText={(t) => { setResetPw(t); setResetError(""); }}
-              secureTextEntry
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Yeni Şifre (Tekrar)"
-              placeholderTextColor="#9ca3af"
-              value={resetPw2}
-              onChangeText={(t) => { setResetPw2(t); setResetError(""); }}
-              secureTextEntry
-            />
-            {!!resetError && <Text style={styles.resetError}>{resetError}</Text>}
-
-            <View style={styles.modalBtnRow}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setResetVisible(false)}>
-                <Text style={styles.modalCancelText}>İptal</Text>
-              </Pressable>
-              <Pressable style={styles.modalConfirmBtn} onPress={handleResetSubmit}>
-                <Text style={styles.modalConfirmText}>Güncelle</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -426,32 +368,4 @@ const styles = StyleSheet.create({
     marginTop: 24,
     lineHeight: 16,
   },
-  modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center", justifyContent: "center", padding: 24,
-  },
-  modalBox: {
-    backgroundColor: "#FFFFFF", borderRadius: 20,
-    padding: 24, width: "100%", maxWidth: 380,
-  },
-  modalTitle: { fontSize: 20, fontWeight: "700", color: "#111827", marginBottom: 6 },
-  modalSub: { fontSize: 13, color: "#6b7280", marginBottom: 20 },
-  modalInput: {
-    backgroundColor: "#F3F4F6", borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: "#111827", marginBottom: 12,
-    borderWidth: 1, borderColor: "#E5E7EB",
-  },
-  resetError: { fontSize: 13, color: "#ef4444", marginBottom: 10 },
-  modalBtnRow: { flexDirection: "row", gap: 12, marginTop: 4 },
-  modalCancelBtn: {
-    flex: 1, borderWidth: 1, borderColor: "#D1D5DB",
-    borderRadius: 10, paddingVertical: 12, alignItems: "center",
-  },
-  modalCancelText: { fontSize: 15, color: "#374151", fontWeight: "600" },
-  modalConfirmBtn: {
-    flex: 1, backgroundColor: "#2D7A4F",
-    borderRadius: 10, paddingVertical: 12, alignItems: "center",
-  },
-  modalConfirmText: { fontSize: 15, color: "#FFFFFF", fontWeight: "700" },
 });

@@ -1218,6 +1218,7 @@ export default function BirdsScreen() {
             await deleteBird(bird.id);
             if (detailBird?.id === bird.id) setDetailBird(null);
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            Alert.alert("Silindi", "Kuş ve görseli buluttan silindi.");
           },
         },
       ]
