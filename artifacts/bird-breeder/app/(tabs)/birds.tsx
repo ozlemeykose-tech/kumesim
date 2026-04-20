@@ -118,26 +118,11 @@ async function pickImage(source: "camera" | "gallery"): Promise<string | null> {
   }
 }
 
-function showImageSourcePicker(onPick: (uri: string) => void) {
-  const cameraOption = Platform.OS !== "web"
-    ? [{ text: "Kamera", onPress: async () => { const uri = await pickImage("camera"); if (uri) onPick(uri); } }]
-    : [];
-
-  if (Platform.OS === "ios") {
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options: ["İptal", "Kamera", "Galeri"], cancelButtonIndex: 0 },
-      async (idx) => {
-        if (idx === 1) { const uri = await pickImage("camera"); if (uri) onPick(uri); }
-        else if (idx === 2) { const uri = await pickImage("gallery"); if (uri) onPick(uri); }
-      }
-    );
-  } else {
-    Alert.alert("Fotoğraf Ekle", "Kaynak seçin", [
-      { text: "İptal", style: "cancel" },
-      ...cameraOption,
-      { text: "Galeri", onPress: async () => { const uri = await pickImage("gallery"); if (uri) onPick(uri); } },
-    ]);
-  }
+// "Fotoğraf Ekle" → opens the camera IMMEDIATELY. No source-picker dialog.
+// Falls back to gallery automatically on web / when permission denied.
+async function showImageSourcePicker(onPick: (uri: string) => void) {
+  const uri = await pickImage("camera");
+  if (uri) onPick(uri);
 }
 
 async function shareViaWhatsApp(bird: Bird, birds: Bird[]) {
@@ -1247,7 +1232,7 @@ export default function BirdsScreen() {
                 setEditingBird(item);
                 setEditModalVisible(true);
               }}
-              onLineage={() => router.push("/(tabs)/lineage" as any)}
+              onLineage={() => router.push({ pathname: "/(tabs)/lineage" as any, params: { birdId: item.id } })}
             />
           </Pressable>
         )}

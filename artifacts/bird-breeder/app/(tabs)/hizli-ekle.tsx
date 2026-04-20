@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -32,61 +33,70 @@ const GENDER_LABEL: Record<Gender, string> = {
   male: "Erkek", female: "Dişi", unknown: "Bilinmiyor",
 };
 
-async function pickImageFromSource(source: "camera" | "gallery"): Promise<string | null> {
+async function pickFromGallery(): Promise<string | null> {
   try {
-    if (source === "camera") {
-      if (Platform.OS === "web") {
-        Alert.alert("Uyarı", "Kamera web tarayıcısında desteklenmez. Galeri kullanın.");
-        return null;
-      }
-      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        if (!canAskAgain) {
-          Alert.alert("İzin Gerekli", "Kamera iznini Ayarlar'dan açmanız gerekiyor.");
-        } else {
-          Alert.alert("İzin Gerekli", "Kamera kullanmak için izin vermeniz gerekiyor.");
-        }
-        return null;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true, aspect: [1, 1], quality: 0.8,
-      });
-      if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("İzin Gerekli", "Fotoğraf kitaplığına erişmek için izin gerekiyor.");
-        return null;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.8,
-      });
-      if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("İzin Gerekli", "Fotoğraf kitaplığına erişmek için izin gerekiyor.");
+      return null;
     }
-  } catch (e) {
-    Alert.alert("Hata", "Fotoğraf seçilirken bir hata oluştu.");
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+  } catch (_) {
+    Alert.alert("Hata", "Galeri açılırken bir hata oluştu.");
   }
   return null;
 }
 
-function pickImage(onPick: (uri: string) => void) {
-  const options = Platform.OS === "web"
-    ? [
-        { text: "İptal", style: "cancel" as const },
-        { text: "Galeri", onPress: async () => { const u = await pickImageFromSource("gallery"); if (u) onPick(u); } },
-      ]
-    : [
-        { text: "İptal", style: "cancel" as const },
-        { text: "Kamera", onPress: async () => { const u = await pickImageFromSource("camera"); if (u) onPick(u); } },
-        { text: "Galeri", onPress: async () => { const u = await pickImageFromSource("gallery"); if (u) onPick(u); } },
-      ];
-  Alert.alert("Fotoğraf Ekle", Platform.OS === "web" ? "Kaynak seçin" : "Kaynak seçin", options);
+// "Fotoğraf Ekle" → opens the camera IMMEDIATELY (no source-picker dialog).
+// Falls back to gallery if camera unavailable / permission denied / web.
+async function openCameraDirectly(): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return pickFromGallery();
+  }
+  try {
+    let perm = await ImagePicker.getCameraPermissionsAsync();
+    if (perm.status !== "granted" && perm.canAskAgain) {
+      perm = await ImagePicker.requestCameraPermissionsAsync();
+    }
+    if (perm.status !== "granted") {
+      return new Promise((resolve) => {
+        const buttons: any[] = [
+          { text: "İptal", style: "cancel", onPress: () => resolve(null) },
+          { text: "Galeriyi Aç", onPress: async () => resolve(await pickFromGallery()) },
+        ];
+        if (!perm.canAskAgain) {
+          buttons.push({
+            text: "Ayarları Aç",
+            onPress: async () => { try { await Linking.openSettings(); } catch {} resolve(null); },
+          });
+        }
+        Alert.alert(
+          "Kamera İzni Gerekli",
+          perm.canAskAgain
+            ? "Kameraya erişim izni verilmedi."
+            : "Kamera izni reddedildi. Cihaz Ayarlarından açabilirsiniz.",
+          buttons
+        );
+      });
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) return result.assets[0].uri;
+    return null;
+  } catch (_) {
+    // Camera failed → automatic gallery fallback
+    return pickFromGallery();
+  }
 }
 
 export default function HizliEkleScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { canAddBird, addBird } = useBirds();
+  const { birds, canAddBird, addBird } = useBirds();
 
   const [name, setName] = useState("");
   const [ringNo, setRingNo] = useState("");
@@ -95,37 +105,65 @@ export default function HizliEkleScreen() {
   const [gender, setGender] = useState<Gender>("unknown");
   const [imageUri, setImageUri] = useState("");
   const [notes, setNotes] = useState("");
+  const [motherId, setMotherId] = useState("");
+  const [fatherId, setFatherId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const males = birds.filter((b) => b.gender === "male");
+  const females = birds.filter((b) => b.gender === "female");
 
   const reset = () => {
     setName(""); setRingNo(""); setSpecies(""); setBreed("");
     setGender("unknown"); setImageUri(""); setNotes("");
+    setMotherId(""); setFatherId("");
+  };
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)/birds");
   };
 
   const handleSave = async () => {
     if (!name.trim()) { Alert.alert("Uyarı", "Kuş adı gereklidir."); return; }
     if (!canAddBird) { Alert.alert("Limit Doldu", `En fazla ${MAX_BIRDS} kuş eklenebilir.`); return; }
     setSaving(true);
-    const result = await addBird({ name: name.trim(), ringNo, breed, species, gender, imageUri, notes });
+    const result = await addBird({
+      name: name.trim(), ringNo, breed, species, gender, imageUri, notes, motherId, fatherId,
+    });
     setSaving(false);
     if (!result.success) { Alert.alert("Hata", result.reason ?? "Kuş eklenemedi."); return; }
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Başarılı", "Kuş başarıyla kaydedildi! 🐦", [
-      { text: "Tamam", onPress: () => { reset(); router.push("/(tabs)/birds"); } },
-      { text: "Bir Tane Daha Ekle", onPress: reset },
-    ]);
+    // Toast + clear form + STAY on page for next entry
+    showToast("Yeni kuş başarıyla kaydedildi");
+    reset();
+  };
+
+  const handlePickPhoto = async () => {
+    const uri = await openCameraDirectly();
+    if (uri) setImageUri(uri);
   };
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: {
-      paddingHorizontal: 20,
-      paddingTop: Platform.OS === "web" ? 80 : insets.top + 16,
+      paddingHorizontal: 16,
+      paddingTop: Platform.OS === "web" ? 24 : insets.top + 12,
       paddingBottom: 12,
-      flexDirection: "row", alignItems: "center", gap: 12,
+      flexDirection: "row", alignItems: "center", gap: 8,
     },
-    title: { fontSize: 24, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.foreground },
-    content: { paddingHorizontal: 20, paddingBottom: 120 },
+    backBtn: {
+      width: 40, height: 40, borderRadius: 20,
+      backgroundColor: colors.muted,
+      alignItems: "center", justifyContent: "center",
+    },
+    title: { fontSize: 22, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.foreground, flex: 1 },
+    content: { paddingHorizontal: 20, paddingBottom: 140 },
     label: {
       fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold",
       color: colors.mutedForeground, textTransform: "uppercase",
@@ -151,17 +189,38 @@ export default function HizliEkleScreen() {
     },
     photoImage: { width: "100%", height: "100%" },
     photoLabel: { fontSize: 14, fontFamily: "Inter_500Medium", color: colors.mutedForeground, marginTop: 8 },
+    parentRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    parentChip: { paddingVertical: 7, paddingHorizontal: 13, borderRadius: 20, borderWidth: 1.5 },
     saveBtn: {
       backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16,
       alignItems: "center", marginTop: 28, marginBottom: 8,
       shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
     },
     saveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+    toast: {
+      position: "absolute", left: 20, right: 20,
+      bottom: Platform.OS === "web" ? 110 : 110,
+      backgroundColor: "#1B5E37",
+      borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18,
+      flexDirection: "row", alignItems: "center", gap: 10,
+      shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+    },
+    toastText: {
+      color: "#FFFFFF", fontFamily: "Inter_600SemiBold", fontSize: 14, flex: 1,
+    },
   });
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={handleBack}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Geri"
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.foreground} />
+        </Pressable>
         <Text style={styles.title}>Hızlı Ekle</Text>
       </View>
 
@@ -232,14 +291,64 @@ export default function HizliEkleScreen() {
           onChangeText={setBreed}
         />
 
+        {females.length > 0 && (
+          <>
+            <Text style={styles.label}>Anne Seç</Text>
+            <View style={styles.parentRow}>
+              {females.map((f) => (
+                <Pressable
+                  key={f.id}
+                  style={[
+                    styles.parentChip,
+                    {
+                      backgroundColor: motherId === f.id ? "#ec4899" + "18" : "transparent",
+                      borderColor: motherId === f.id ? "#ec4899" : colors.border,
+                    },
+                  ]}
+                  onPress={() => setMotherId(motherId === f.id ? "" : f.id)}
+                >
+                  <Text style={[styles.chipText, { color: motherId === f.id ? "#ec4899" : colors.mutedForeground }]}>
+                    {f.name?.trim() ? f.name : `Kuş #${f.id.slice(-6)}`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
+        {males.length > 0 && (
+          <>
+            <Text style={styles.label}>Baba Seç</Text>
+            <View style={styles.parentRow}>
+              {males.map((m) => (
+                <Pressable
+                  key={m.id}
+                  style={[
+                    styles.parentChip,
+                    {
+                      backgroundColor: fatherId === m.id ? colors.primary + "18" : "transparent",
+                      borderColor: fatherId === m.id ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setFatherId(fatherId === m.id ? "" : m.id)}
+                >
+                  <Text style={[styles.chipText, { color: fatherId === m.id ? colors.primary : colors.mutedForeground }]}>
+                    {m.name?.trim() ? m.name : `Kuş #${m.id.slice(-6)}`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
         <Text style={styles.label}>Fotoğraf</Text>
-        <Pressable style={styles.photoArea} onPress={() => pickImage(setImageUri)}>
+        <Pressable style={styles.photoArea} onPress={handlePickPhoto}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.photoImage} resizeMode="cover" />
           ) : (
             <>
-              <Ionicons name="camera-outline" size={36} color={colors.mutedForeground} />
-              <Text style={styles.photoLabel}>Kamera veya Galeri</Text>
+              <Ionicons name="camera" size={36} color={colors.primary} />
+              <Text style={styles.photoLabel}>Fotoğraf Ekle (Kamera)</Text>
             </>
           )}
         </Pressable>
@@ -264,6 +373,13 @@ export default function HizliEkleScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+
+      {toast && (
+        <View style={styles.toast} pointerEvents="none">
+          <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      )}
     </View>
   );
 }

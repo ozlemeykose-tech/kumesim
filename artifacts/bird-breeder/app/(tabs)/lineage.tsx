@@ -1,6 +1,8 @@
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useMemo, useState } from "react";
 import {
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -8,417 +10,429 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Bird, useBirds } from "@/context/BirdsContext";
 import { useColors } from "@/hooks/useColors";
 
-function GenderDot({ gender }: { gender: Bird["gender"] }) {
-  const color =
-    gender === "male" ? "#3b82f6" : gender === "female" ? "#ec4899" : "#8b5cf6";
+const FATHER_COLOR = "#3b82f6"; // blue
+const MOTHER_COLOR = "#ec4899"; // pink
+const SELF_COLOR = "#1B5E37";   // green
+
+type SlotKind = "self" | "anne" | "baba" | "child";
+
+function genderColor(g: Bird["gender"]) {
+  return g === "male" ? FATHER_COLOR : g === "female" ? MOTHER_COLOR : "#8b5cf6";
+}
+
+function displayName(b: Bird | undefined) {
+  if (!b) return "—";
+  return b.name?.trim() ? b.name : `Kuş #${b.id.slice(-6)}`;
+}
+
+function NodeCard({
+  bird,
+  kind,
+  onPress,
+  empty,
+}: {
+  bird?: Bird;
+  kind: SlotKind;
+  onPress?: () => void;
+  empty?: boolean;
+}) {
+  const colors = useColors();
+  const accent =
+    kind === "anne" ? MOTHER_COLOR :
+    kind === "baba" ? FATHER_COLOR :
+    kind === "self" ? SELF_COLOR :
+    bird ? genderColor(bird.gender) : colors.border;
+
+  const label =
+    kind === "anne" ? "ANNE" :
+    kind === "baba" ? "BABA" :
+    kind === "self" ? "KENDİSİ" :
+    "YAVRU";
+
+  const styles = StyleSheet.create({
+    card: {
+      backgroundColor: empty ? "transparent" : colors.card,
+      borderWidth: empty ? 1.5 : 2,
+      borderStyle: empty ? "dashed" : "solid",
+      borderColor: accent,
+      borderRadius: 14,
+      padding: 10,
+      alignItems: "center",
+      width: 110,
+      minHeight: 120,
+      justifyContent: "center",
+      gap: 4,
+    },
+    badge: {
+      position: "absolute",
+      top: -9,
+      backgroundColor: accent,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    badgeText: {
+      color: "#FFFFFF",
+      fontFamily: "Inter_700Bold",
+      fontSize: 10,
+      letterSpacing: 0.5,
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: accent + "1A",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    avatarImg: { width: 48, height: 48 },
+    name: {
+      fontFamily: "Inter_600SemiBold",
+      fontSize: 12,
+      color: colors.foreground,
+      textAlign: "center",
+    },
+    meta: {
+      fontFamily: "Inter_400Regular",
+      fontSize: 10,
+      color: colors.mutedForeground,
+      textAlign: "center",
+    },
+    emptyText: {
+      fontFamily: "Inter_500Medium",
+      fontSize: 11,
+      color: colors.mutedForeground,
+      textAlign: "center",
+    },
+  });
+
   return (
-    <View
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: color,
-        marginLeft: 4,
-      }}
-    />
+    <Pressable
+      style={styles.card}
+      onPress={onPress}
+      disabled={empty || !onPress}
+    >
+      <View style={styles.badge}>
+        <Text style={styles.badgeText}>{label}</Text>
+      </View>
+      {empty || !bird ? (
+        <>
+          <Ionicons name="add-circle-outline" size={28} color={colors.mutedForeground} />
+          <Text style={styles.emptyText}>Bilinmiyor</Text>
+        </>
+      ) : (
+        <>
+          <View style={styles.avatar}>
+            {bird.imageUri ? (
+              <Image source={{ uri: bird.imageUri }} style={styles.avatarImg} />
+            ) : (
+              <MaterialCommunityIcons name="bird" size={26} color={accent} />
+            )}
+          </View>
+          <Text style={styles.name} numberOfLines={2}>{displayName(bird)}</Text>
+          {bird.species ? <Text style={styles.meta} numberOfLines={1}>{bird.species}</Text> : null}
+        </>
+      )}
+    </Pressable>
   );
 }
 
-function BirdNode({
-  bird,
-  depth,
-  birds,
-  onSelect,
-}: {
-  bird: Bird;
-  depth: number;
-  birds: Bird[];
-  onSelect: (b: Bird) => void;
-}) {
+function FamilyTree({ bird, birds, onPick }: { bird: Bird; birds: Bird[]; onPick: (b: Bird) => void }) {
   const colors = useColors();
   const father = birds.find((b) => b.id === bird.fatherId);
   const mother = birds.find((b) => b.id === bird.motherId);
-  const [expanded, setExpanded] = useState(depth < 2);
-  const hasParents = father || mother;
+  const children = birds.filter((b) => b.fatherId === bird.id || b.motherId === bird.id);
 
   const styles = StyleSheet.create({
     wrapper: {
-      marginBottom: 8,
-    },
-    nodeCard: {
       backgroundColor: colors.card,
-      borderRadius: 12,
-      padding: 12,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      borderLeftWidth: 3,
-      borderLeftColor: depth === 0 ? colors.primary : depth === 1 ? "#4CAF78" : colors.border,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 3,
-      elevation: 1,
-    },
-    iconBg: {
-      width: 36,
-      height: 36,
       borderRadius: 18,
-      backgroundColor: depth === 0 ? colors.primary + "18" : colors.secondary,
-      alignItems: "center",
-      justifyContent: "center",
+      padding: 16,
+      paddingTop: 24,
+      marginBottom: 16,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 2,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
-    info: { flex: 1 },
-    name: {
-      fontSize: 15,
-      fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
-      color: colors.foreground,
+    parentsRow: {
       flexDirection: "row",
+      justifyContent: "center",
+      gap: 24,
+    },
+    // Vertical connector going down from each parent
+    parentDown: {
+      position: "absolute",
+      width: 2,
+      backgroundColor: "#9CA3AF",
+    },
+    // Horizontal line joining the two parent verticals
+    parentJoin: {
+      height: 2,
+      backgroundColor: "#9CA3AF",
+      alignSelf: "center",
+    },
+    // Vertical connector from join down to self card
+    parentToSelf: {
+      width: 2,
+      height: 18,
+      backgroundColor: "#9CA3AF",
+      alignSelf: "center",
+    },
+    selfRow: {
+      alignItems: "center",
+      marginTop: 4,
+    },
+    // Below self → connector to children
+    selfToChildren: {
+      width: 2,
+      height: 18,
+      backgroundColor: "#9CA3AF",
+      alignSelf: "center",
+    },
+    childrenJoin: {
+      height: 2,
+      backgroundColor: "#9CA3AF",
+      alignSelf: "center",
+    },
+    childrenRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      gap: 18,
+      marginTop: 0,
+    },
+    childItemWrap: {
       alignItems: "center",
     },
-    nameText: {
-      fontSize: 15,
-      fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
-      color: colors.foreground,
+    childToParent: {
+      width: 2,
+      height: 14,
+      backgroundColor: "#9CA3AF",
     },
-    detail: {
-      fontSize: 12,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
-    },
-    expandBtn: {
-      padding: 4,
-    },
-    parentSection: {
-      marginLeft: 20,
-      marginTop: 4,
-      borderLeftWidth: 1.5,
-      borderLeftColor: colors.border,
-      paddingLeft: 12,
-    },
-    parentLabel: {
-      fontSize: 11,
-      fontWeight: "700" as const,
+    sectionLabel: {
       fontFamily: "Inter_700Bold",
+      fontSize: 11,
+      letterSpacing: 0.6,
       color: colors.mutedForeground,
       textTransform: "uppercase",
-      letterSpacing: 0.5,
-      marginBottom: 4,
-      marginTop: 6,
+      marginBottom: 10,
+      textAlign: "center",
+    },
+    childrenSection: {
+      marginTop: 8,
     },
   });
 
   return (
     <View style={styles.wrapper}>
-      <Pressable
-        style={({ pressed }) => [styles.nodeCard, pressed && { opacity: 0.85 }]}
-        onPress={() => onSelect(bird)}
-        onLongPress={() => setExpanded((e) => !e)}
-      >
-        <View style={styles.iconBg}>
-          <MaterialCommunityIcons name="bird" size={18} color={colors.primary} />
-        </View>
-        <View style={styles.info}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text style={styles.nameText}>{bird.name}</Text>
-            <GenderDot gender={bird.gender} />
-          </View>
-          <Text style={styles.detail}>
-            {[bird.breed, bird.ringNo].filter(Boolean).join(" · ") || "No details"}
-          </Text>
-        </View>
-        {hasParents && (
-          <Pressable style={styles.expandBtn} onPress={() => setExpanded((e) => !e)}>
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={16}
-              color={colors.mutedForeground}
-            />
-          </Pressable>
-        )}
-      </Pressable>
+      <Text style={styles.sectionLabel}>Soy Ağacı — {displayName(bird)}</Text>
 
-      {hasParents && expanded && (
-        <View style={styles.parentSection}>
-          {father && (
-            <>
-              <Text style={styles.parentLabel}>Father</Text>
-              <BirdNode bird={father} depth={depth + 1} birds={birds} onSelect={onSelect} />
-            </>
-          )}
-          {mother && (
-            <>
-              <Text style={styles.parentLabel}>Mother</Text>
-              <BirdNode bird={mother} depth={depth + 1} birds={birds} onSelect={onSelect} />
-            </>
-          )}
+      {/* Parents row: Anne (left) + Baba (right) */}
+      <View style={styles.parentsRow}>
+        <NodeCard
+          bird={mother}
+          kind="anne"
+          onPress={mother ? () => onPick(mother) : undefined}
+          empty={!mother}
+        />
+        <NodeCard
+          bird={father}
+          kind="baba"
+          onPress={father ? () => onPick(father) : undefined}
+          empty={!father}
+        />
+      </View>
+
+      {/* Connector: parents → self */}
+      {(father || mother) && (
+        <>
+          <View style={[styles.parentJoin, { width: 134, marginTop: 6 }]} />
+          <View style={styles.parentToSelf} />
+        </>
+      )}
+
+      {/* Self */}
+      <View style={styles.selfRow}>
+        <NodeCard bird={bird} kind="self" />
+      </View>
+
+      {/* Connector down + children */}
+      {children.length > 0 && (
+        <View style={styles.childrenSection}>
+          <View style={styles.selfToChildren} />
+          <View
+            style={[
+              styles.childrenJoin,
+              { width: Math.min(children.length, 4) * 130 - 16 },
+            ]}
+          />
+          <View style={styles.childrenRow}>
+            {children.map((c) => (
+              <View key={c.id} style={styles.childItemWrap}>
+                <View style={styles.childToParent} />
+                <NodeCard bird={c} kind="child" onPress={() => onPick(c)} />
+              </View>
+            ))}
+          </View>
         </View>
       )}
     </View>
   );
 }
 
-function BirdDetailSheet({
-  bird,
-  birds,
-  onClose,
-}: {
-  bird: Bird;
-  birds: Bird[];
-  onClose: () => void;
-}) {
-  const colors = useColors();
-  const father = birds.find((b) => b.id === bird.fatherId);
-  const mother = birds.find((b) => b.id === bird.motherId);
-  const children = birds.filter(
-    (b) => b.fatherId === bird.id || b.motherId === bird.id
-  );
-
-  const styles = StyleSheet.create({
-    overlay: {
-      position: "absolute",
-      inset: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      top: 0,
-      backgroundColor: "rgba(0,0,0,0.45)",
-      justifyContent: "flex-end",
-    },
-    card: {
-      backgroundColor: colors.card,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
-      paddingBottom: Platform.OS === "web" ? 40 : 32,
-    },
-    handle: {
-      alignSelf: "center",
-      width: 40,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: colors.border,
-      marginBottom: 16,
-    },
-    name: {
-      fontSize: 22,
-      fontWeight: "700" as const,
-      fontFamily: "Inter_700Bold",
-      color: colors.foreground,
-      marginBottom: 4,
-    },
-    detail: {
-      fontSize: 14,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
-      marginBottom: 16,
-    },
-    sectionTitle: {
-      fontSize: 12,
-      fontWeight: "700" as const,
-      fontFamily: "Inter_700Bold",
-      color: colors.mutedForeground,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-      marginBottom: 8,
-      marginTop: 12,
-    },
-    relRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingVertical: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    relName: {
-      fontSize: 14,
-      fontFamily: "Inter_500Medium",
-      color: colors.foreground,
-    },
-    relRole: {
-      fontSize: 12,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
-    },
-    emptyRel: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
-    },
-    closeBtn: {
-      marginTop: 20,
-      paddingVertical: 13,
-      backgroundColor: colors.muted,
-      borderRadius: 12,
-      alignItems: "center",
-    },
-    closeText: {
-      fontSize: 14,
-      fontFamily: "Inter_600SemiBold",
-      color: colors.foreground,
-    },
-  });
-
-  return (
-    <Pressable style={styles.overlay} onPress={onClose}>
-      <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-        <View style={styles.handle} />
-        <Text style={styles.name}>{bird.name}</Text>
-        <Text style={styles.detail}>
-          {[bird.breed, bird.ringNo, bird.gender].filter(Boolean).join(" · ")}
-        </Text>
-
-        <Text style={styles.sectionTitle}>Parents</Text>
-        {father ? (
-          <View style={styles.relRow}>
-            <MaterialCommunityIcons name="bird" size={16} color="#3b82f6" />
-            <Text style={styles.relName}>{father.name}</Text>
-            <Text style={styles.relRole}>(Father)</Text>
-          </View>
-        ) : null}
-        {mother ? (
-          <View style={styles.relRow}>
-            <MaterialCommunityIcons name="bird" size={16} color="#ec4899" />
-            <Text style={styles.relName}>{mother.name}</Text>
-            <Text style={styles.relRole}>(Mother)</Text>
-          </View>
-        ) : null}
-        {!father && !mother && (
-          <Text style={styles.emptyRel}>No parent info recorded</Text>
-        )}
-
-        {children.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Offspring ({children.length})</Text>
-            {children.map((c) => (
-              <View key={c.id} style={styles.relRow}>
-                <MaterialCommunityIcons name="bird" size={16} color={colors.primary} />
-                <Text style={styles.relName}>{c.name}</Text>
-                <Text style={styles.relRole}>
-                  ({c.fatherId === bird.id ? "child" : "child"})
-                </Text>
-              </View>
-            ))}
-          </>
-        )}
-
-        <Pressable style={styles.closeBtn} onPress={onClose}>
-          <Text style={styles.closeText}>Close</Text>
-        </Pressable>
-      </Pressable>
-    </Pressable>
-  );
-}
-
 export default function LineageScreen() {
   const colors = useColors();
   const { birds } = useBirds();
-  const [selectedBird, setSelectedBird] = useState<Bird | null>(null);
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ birdId?: string }>();
 
-  const rootBirds = birds.filter(
-    (b) => !birds.some((other) => other.fatherId === b.id || other.motherId === b.id) ||
-    birds.filter((other) => other.fatherId === b.id || other.motherId === b.id).length === 0
-  );
+  // If a birdId is passed via params, focus on that bird's tree.
+  // Otherwise show a tree for every bird that has at least one parent or child.
+  const initialFocus = useMemo(() => {
+    if (params.birdId) return birds.find((b) => b.id === params.birdId) ?? null;
+    return null;
+  }, [params.birdId, birds]);
 
-  const displayBirds = rootBirds.length > 0 ? rootBirds : birds;
+  const [focus, setFocus] = useState<Bird | null>(initialFocus);
+
+  React.useEffect(() => {
+    if (initialFocus) setFocus(initialFocus);
+  }, [initialFocus]);
+
+  const treesToShow: Bird[] = focus
+    ? [focus]
+    : birds.filter((b) => {
+        const hasParent = !!b.fatherId || !!b.motherId;
+        const hasChild = birds.some((o) => o.fatherId === b.id || o.motherId === b.id);
+        return hasParent || hasChild;
+      });
+
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)/birds");
+  };
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: {
-      paddingHorizontal: 20,
-      paddingTop: Platform.OS === "web" ? 80 : 16,
-      paddingBottom: 10,
+      paddingHorizontal: 16,
+      paddingTop: Platform.OS === "web" ? 24 : insets.top + 12,
+      paddingBottom: 12,
+      flexDirection: "row", alignItems: "center", gap: 8,
     },
-    title: {
-      fontSize: 26,
-      fontWeight: "700" as const,
-      fontFamily: "Inter_700Bold",
-      color: colors.foreground,
+    backBtn: {
+      width: 40, height: 40, borderRadius: 20,
+      backgroundColor: colors.muted,
+      alignItems: "center", justifyContent: "center",
     },
-    sub: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+    title: { flex: 1, fontSize: 22, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.foreground },
+    sub: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular", paddingHorizontal: 20, marginBottom: 8 },
+    listContent: { paddingHorizontal: 14, paddingBottom: 130 },
+    chipRow: {
+      flexDirection: "row", flexWrap: "wrap", gap: 8,
+      paddingHorizontal: 20, marginBottom: 12,
     },
-    hint: {
-      fontSize: 12,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
-      paddingHorizontal: 20,
-      marginBottom: 8,
-      fontStyle: "italic",
+    chip: {
+      paddingVertical: 6, paddingHorizontal: 12, borderRadius: 18,
+      borderWidth: 1.5, flexDirection: "row", alignItems: "center", gap: 5,
     },
-    listContent: {
-      paddingHorizontal: 20,
-      paddingBottom: Platform.OS === "web" ? 100 : 120,
-    },
-    empty: {
-      alignItems: "center",
-      paddingVertical: 80,
-    },
+    chipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+    empty: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 32 },
     emptyTitle: {
-      fontSize: 18,
-      fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
-      color: colors.foreground,
-      marginTop: 16,
-      marginBottom: 6,
+      fontSize: 18, fontWeight: "600", fontFamily: "Inter_600SemiBold",
+      color: colors.foreground, marginTop: 16, marginBottom: 6,
     },
     emptyText: {
-      fontSize: 14,
-      color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
-      textAlign: "center",
-      paddingHorizontal: 32,
+      fontSize: 13, color: colors.mutedForeground,
+      fontFamily: "Inter_400Regular", textAlign: "center",
     },
   });
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Family Tree</Text>
-        <Text style={styles.sub}>Lineage & relationships</Text>
+        <Pressable
+          style={styles.backBtn}
+          onPress={handleBack}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Geri"
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.foreground} />
+        </Pressable>
+        <Text style={styles.title}>Soy Ağacı</Text>
       </View>
+
       {birds.length > 0 && (
-        <Text style={styles.hint}>Tap a bird for details · Long-press to expand/collapse</Text>
+        <Text style={styles.sub}>
+          {focus ? `${displayName(focus)} için soy ağacı` : "Bir kuş seçin veya tüm aileleri görün"}
+        </Text>
+      )}
+
+      {birds.length > 0 && (
+        <View style={styles.chipRow}>
+          <Pressable
+            style={[
+              styles.chip,
+              { backgroundColor: !focus ? colors.primary + "18" : "transparent",
+                borderColor: !focus ? colors.primary : colors.border },
+            ]}
+            onPress={() => setFocus(null)}
+          >
+            <Text style={[styles.chipText, { color: !focus ? colors.primary : colors.mutedForeground }]}>
+              Tümü
+            </Text>
+          </Pressable>
+          {birds.map((b) => (
+            <Pressable
+              key={b.id}
+              style={[
+                styles.chip,
+                { backgroundColor: focus?.id === b.id ? colors.primary + "18" : "transparent",
+                  borderColor: focus?.id === b.id ? colors.primary : colors.border },
+              ]}
+              onPress={() => setFocus(b)}
+            >
+              <Text style={[styles.chipText, { color: focus?.id === b.id ? colors.primary : colors.mutedForeground }]}>
+                {displayName(b)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       )}
 
       <ScrollView contentContainerStyle={styles.listContent}>
         {birds.length === 0 ? (
           <View style={styles.empty}>
             <MaterialCommunityIcons name="family-tree" size={64} color={colors.border} />
-            <Text style={styles.emptyTitle}>No birds added yet</Text>
+            <Text style={styles.emptyTitle}>Henüz kuş eklenmedi</Text>
             <Text style={styles.emptyText}>
-              Add birds in the My Birds tab, then assign parents to see the family tree
+              Önce Kuşlarım'a kuş ekleyin, ardından Anne ve Baba seçerek soy ağacı oluşturulur.
+            </Text>
+          </View>
+        ) : treesToShow.length === 0 ? (
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="family-tree" size={64} color={colors.border} />
+            <Text style={styles.emptyTitle}>Soy bağı yok</Text>
+            <Text style={styles.emptyText}>
+              Kuşlara Anne ve Baba seçimi yaparak soy ağacını oluşturun.
             </Text>
           </View>
         ) : (
-          displayBirds.map((bird) => (
-            <BirdNode
-              key={bird.id}
-              bird={bird}
-              depth={0}
-              birds={birds}
-              onSelect={setSelectedBird}
-            />
+          treesToShow.map((b) => (
+            <FamilyTree key={b.id} bird={b} birds={birds} onPick={setFocus} />
           ))
         )}
       </ScrollView>
-
-      {selectedBird && (
-        <BirdDetailSheet
-          bird={selectedBird}
-          birds={birds}
-          onClose={() => setSelectedBird(null)}
-        />
-      )}
     </View>
   );
 }
