@@ -13,7 +13,7 @@ import { Platform } from "react-native";
 
 // kumesim-yeni — production Firebase project
 const firebaseConfig = {
-  apiKey: "AIzaSyAacF7Ax3x-0QSs_dBMEst6MYmP3Qa4fVg",
+  apiKey: "AIzaSyCFX0gy-lEt19uTU33BX3bsOPn4Ecmnk9A",
   authDomain: "kumesim-yeni.firebaseapp.com",
   projectId: "kumesim-yeni",
   storageBucket: "kumesim-yeni.firebasestorage.app",
