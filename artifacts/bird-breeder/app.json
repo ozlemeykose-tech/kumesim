@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "AvianNest",
-    "slug": "bird-breeder",
+    "name": "Kümesim",
+    "slug": "kumesim",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "bird-breeder",
+    "scheme": "kumesim",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {

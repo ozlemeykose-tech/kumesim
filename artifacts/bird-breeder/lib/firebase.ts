@@ -11,31 +11,29 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
+// kumesim-yeni — production Firebase project
 const firebaseConfig = {
   apiKey: "AIzaSyAacF7Ax3x-uV2_B79z49N0M9G7G6-zW9lW",
-  authDomain: "kumestim-yeni.firebaseapp.com",
-  projectId: "kumestim-yeni",
-  storageBucket: "kumestim-yeni.firebasestorage.app",
+  authDomain: "kumesim-yeni.firebaseapp.com",
+  projectId: "kumesim-yeni",
+  storageBucket: "kumesim-yeni.firebasestorage.app",
   messagingSenderId: "480888156704",
   appId: "1:480888156704:web:9f8e43e49e4d9c7e7b7b7",
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Auth with LOCAL persistence — stays logged in until explicit logout
+// LOCAL persistence: user stays logged in until explicit logout
 let _auth: ReturnType<typeof getAuth>;
 if (Platform.OS === "web") {
   _auth = getAuth(app);
-  // Explicit LOCAL (localStorage) persistence for web
   setPersistence(_auth, browserLocalPersistence).catch(() => {});
 } else {
   try {
     _auth = initializeAuth(app, {
-      // AsyncStorage = LOCAL persistence on native
       persistence: getReactNativePersistence(AsyncStorage),
     });
   } catch {
-    // auth already initialized on hot reload
     _auth = getAuth(app);
   }
 }
