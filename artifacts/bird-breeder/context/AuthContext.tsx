@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import {
   User,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
-  sendPasswordResetEmail,
   deleteUser,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithCredential,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -15,10 +16,11 @@ interface AuthContextType {
   isLoggedIn: boolean;
   uid: string | null;
   userEmail: string | null;
+  userDisplayName: string | null;
+  userPhoto: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (idToken?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   deleteAccount: () => Promise<void>;
 }
 
@@ -27,36 +29,33 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   uid: null,
   userEmail: null,
+  userDisplayName: null,
+  userPhoto: null,
   loading: true,
-  login: async () => ({ success: false }),
+  loginWithGoogle: async () => ({ success: false }),
   logout: async () => {},
-  resetPassword: async () => ({ success: false }),
   deleteAccount: async () => {},
 });
 
 function mapFirebaseError(code: string): string {
   switch (code) {
-    case "auth/invalid-email":
-      return "Geçersiz e-posta adresi.";
-    case "auth/wrong-password":
-    case "auth/invalid-credential":
-      return "E-posta veya şifre hatalı.";
-    case "auth/user-not-found":
-      return "Bu e-posta ile kayıtlı hesap bulunamadı.";
-    case "auth/email-already-in-use":
-      return "Bu e-posta adresi zaten kullanımda.";
-    case "auth/weak-password":
-      return "Şifre çok zayıf — en az 6 karakter kullanın.";
-    case "auth/too-many-requests":
-      return "Çok fazla deneme yapıldı. Lütfen biraz bekleyin.";
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Google girişi iptal edildi.";
+    case "auth/popup-blocked":
+      return "Tarayıcınız açılır pencereyi engelledi. Lütfen izin verin.";
+    case "auth/account-exists-with-different-credential":
+      return "Bu e-posta farklı bir yöntemle kayıtlı.";
     case "auth/network-request-failed":
       return "Ağ hatası. İnternet bağlantınızı kontrol edin.";
     case "auth/unauthorized-domain":
-      return "Bu alan adı Firebase'de yetkili değil. Firebase Console → Authentication → Settings → Authorized domains'e ekleyin.";
+      return "Bu alan adı Firebase'de yetkili değil.";
     case "auth/requires-recent-login":
-      return "Güvenlik nedeniyle çıkış yapıp tekrar giriş yapın, ardından hesabı silin.";
+      return "Güvenlik için çıkış yapıp tekrar giriş yapın.";
+    case "auth/too-many-requests":
+      return "Çok fazla deneme. Lütfen bekleyin.";
     default:
-      return `Hata (${code || "bilinmeyen"}). Tekrar deneyin.`;
+      return `Giriş başarısız (${code || "bilinmeyen"}). Tekrar deneyin.`;
   }
 }
 
@@ -64,7 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Listen to Firebase Auth state — fires immediately on app open with cached session
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -73,36 +71,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsub;
   }, []);
 
-  // AUTO-REGISTER: try login → if user not found/invalid-cred → create account
-  const login = async (
-    email: string,
-    password: string
+  const loginWithGoogle = async (
+    idToken?: string
   ): Promise<{ success: boolean; error?: string }> => {
-    const norm = email.toLowerCase().trim();
-    if (!norm || !password)
-      return { success: false, error: "E-posta ve şifre gereklidir." };
-
     try {
-      await signInWithEmailAndPassword(auth, norm, password);
-      return { success: true };
-    } catch (signInErr: any) {
-      const code: string = signInErr?.code ?? "";
-
-      // User doesn't exist yet → auto-register
-      if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
-        try {
-          await createUserWithEmailAndPassword(auth, norm, password);
-          return { success: true };
-        } catch (regErr: any) {
-          const regCode: string = regErr?.code ?? "";
-          // Email exists but wrong password
-          if (regCode === "auth/email-already-in-use")
-            return { success: false, error: "Şifre hatalı. Lütfen tekrar deneyin." };
-          return { success: false, error: mapFirebaseError(regCode) };
-        }
+      if (Platform.OS === "web") {
+        // Web: popup flow — works immediately, no extra credentials needed
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        await signInWithPopup(auth, provider);
+        return { success: true };
+      } else {
+        // Native: idToken comes from expo-auth-session (login.tsx)
+        if (!idToken) return { success: false, error: "Google token alınamadı." };
+        const credential = GoogleAuthProvider.credential(idToken);
+        await signInWithCredential(auth, credential);
+        return { success: true };
       }
-
-      return { success: false, error: mapFirebaseError(code) };
+    } catch (err: any) {
+      return { success: false, error: mapFirebaseError(err?.code ?? "") };
     }
   };
 
@@ -110,23 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  // REAL password reset via Firebase — sends link to user's inbox
-  const resetPassword = async (
-    email: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const norm = email.toLowerCase().trim();
-    if (!norm) return { success: false, error: "E-posta adresi gereklidir." };
-    try {
-      await sendPasswordResetEmail(auth, norm);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: mapFirebaseError(err?.code ?? "") };
-    }
-  };
-
   const deleteAccount = async () => {
     const current = auth.currentUser;
-    if (!current) throw Object.assign(new Error("Oturum bulunamadı."), { code: "auth/no-current-user" });
+    if (!current) throw new Error("Oturum bulunamadı.");
     await deleteUser(current);
   };
 
@@ -137,10 +110,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoggedIn: !!user,
         uid: user?.uid ?? null,
         userEmail: user?.email ?? null,
+        userDisplayName: user?.displayName ?? null,
+        userPhoto: user?.photoURL ?? null,
         loading,
-        login,
+        loginWithGoogle,
         logout,
-        resetPassword,
         deleteAccount,
       }}
     >

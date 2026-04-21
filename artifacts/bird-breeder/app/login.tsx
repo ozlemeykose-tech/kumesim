@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -6,13 +6,11 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,207 +18,165 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 
 const BIRD_DECO = [
-  { icon: "bird", size: 52, top: 48, left: 20, opacity: 0.22, rotate: "-15deg" },
-  { icon: "bird", size: 34, top: 100, right: 30, opacity: 0.18, rotate: "10deg" },
-  { icon: "bird", size: 68, top: 160, right: -10, opacity: 0.12, rotate: "-8deg" },
-  { icon: "bird", size: 44, top: 220, left: 60, opacity: 0.15, rotate: "20deg" },
-  { icon: "bird", size: 28, top: 30, right: 100, opacity: 0.25, rotate: "5deg" },
-  { icon: "bird", size: 38, top: 280, right: 50, opacity: 0.14, rotate: "-12deg" },
+  { size: 52, top: 48,  left:  20, opacity: 0.22, rotate: "-15deg" },
+  { size: 34, top: 100, right: 30, opacity: 0.18, rotate:  "10deg" },
+  { size: 68, top: 160, right: -10, opacity: 0.12, rotate: "-8deg" },
+  { size: 44, top: 220, left:  60, opacity: 0.15, rotate:  "20deg" },
+  { size: 28, top:  30, right: 100, opacity: 0.25, rotate:  "5deg" },
+  { size: 38, top: 280, right: 50, opacity: 0.14, rotate: "-12deg" },
 ];
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login, resetPassword } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passFocused, setPassFocused] = useState(false);
+  const { loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isValidEmail = (e: string) => /\S+@\S+\.\S+/.test(e);
-  const canSubmit = isValidEmail(email) && password.length >= 4;
-
-  const handleLogin = async () => {
-    if (!isValidEmail(email)) { setError("Geçerli bir e-posta girin."); return; }
-    if (password.length < 4) { setError("Şifre en az 4 karakter olmalıdır."); return; }
+  const handleGoogleSignIn = async () => {
     setError("");
-    setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      const result = await login(email.toLowerCase().trim(), password);
-      if (!result.success) {
-        setError(result.error ?? "Giriş başarısız.");
-      } else {
-        router.replace("/(tabs)");
-      }
-    } catch (_) {
-      setError("Bir hata oluştu. Tekrar deneyin.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleForgotPassword = async () => {
-    const norm = email.toLowerCase().trim();
-    if (!isValidEmail(norm)) {
-      Alert.alert("Uyarı", "Lütfen önce e-posta adresinizi girin.");
+    if (Platform.OS !== "web") {
+      // Native Expo Go: signInWithPopup not supported — handled in APK build
+      Alert.alert(
+        "Bilgi",
+        "Google ile giriş, uygulama mağazasından indirilen APK sürümünde kullanılabilir."
+      );
       return;
     }
-    const result = await resetPassword(norm);
+
+    setLoading(true);
+    const result = await loginWithGoogle();
+    setLoading(false);
     if (result.success) {
-      Alert.alert(
-        "E-posta Gönderildi",
-        `${norm} adresine şifre sıfırlama bağlantısı gönderildi. Lütfen gelen kutunuzu kontrol edin.`
-      );
+      router.replace("/(tabs)");
     } else {
-      Alert.alert("Hata", result.error ?? "E-posta gönderilemedi.");
+      setError(result.error ?? "Giriş başarısız.");
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
+    <ScrollView
+      contentContainerStyle={{ flexGrow: 1 }}
+      keyboardShouldPersistTaps="handled"
+      bounces={false}
     >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-        bounces={false}
+      <LinearGradient
+        colors={["#0F3D22", "#1B5E37", "#2D7A4F", "#3D9E68"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.heroSection, { paddingTop: insets.top + 32 }]}
       >
-        <LinearGradient
-          colors={["#0F3D22", "#1B5E37", "#2D7A4F", "#3D9E68"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.heroSection, { paddingTop: insets.top + 32 }]}
-        >
-          {BIRD_DECO.map((d, i) => (
-            <View
-              key={i}
-              style={[
-                styles.birdDeco,
-                {
-                  top: d.top,
-                  left: "left" in d ? (d as any).left : undefined,
-                  right: "right" in d ? (d as any).right : undefined,
-                  opacity: d.opacity,
-                  transform: [{ rotate: d.rotate }],
-                },
-              ]}
-            >
-              <MaterialCommunityIcons name="bird" size={d.size} color="#FFFFFF" />
+        {BIRD_DECO.map((d, i) => (
+          <View
+            key={i}
+            style={[
+              styles.birdDeco,
+              {
+                top: d.top,
+                left: "left" in d ? (d as any).left : undefined,
+                right: "right" in d ? (d as any).right : undefined,
+                opacity: d.opacity,
+                transform: [{ rotate: d.rotate }],
+              },
+            ]}
+          >
+            <MaterialCommunityIcons name="bird" size={d.size} color="#FFFFFF" />
+          </View>
+        ))}
+
+        <View style={styles.logoWrap}>
+          <View style={styles.logoCircle}>
+            <MaterialCommunityIcons name="bird" size={72} color="#FFFFFF" />
+          </View>
+        </View>
+        <Text style={styles.appName}>Kümesim</Text>
+        <Text style={styles.tagline}>Kuş Bilgi &amp; Soy Takibi</Text>
+
+        <View style={styles.featureRow}>
+          {[
+            { icon: "check-circle-outline", label: "25 Kuş" },
+            { icon: "egg-outline",          label: "Kuluçka" },
+            { icon: "share-variant-outline", label: "WhatsApp" },
+          ].map((f) => (
+            <View key={f.label} style={styles.featureItem}>
+              <MaterialCommunityIcons
+                name={f.icon as any}
+                size={18}
+                color="rgba(255,255,255,0.85)"
+              />
+              <Text style={styles.featureLabel}>{f.label}</Text>
             </View>
           ))}
-
-          <View style={styles.logoWrap}>
-            <View style={styles.logoCircle}>
-              <MaterialCommunityIcons name="bird" size={72} color="#FFFFFF" />
-            </View>
-          </View>
-          <Text style={styles.appName}>Kümesim</Text>
-          <Text style={styles.tagline}>Kuş Bilgi &amp; Soy Takibi</Text>
-
-          <View style={styles.featureRow}>
-            {[
-              { icon: "check-circle-outline", label: "25 Kuş" },
-              { icon: "egg-outline", label: "Kuluçka" },
-              { icon: "share-variant-outline", label: "WhatsApp" },
-            ].map((f) => (
-              <View key={f.label} style={styles.featureItem}>
-                <MaterialCommunityIcons name={f.icon as any} size={18} color="rgba(255,255,255,0.85)" />
-                <Text style={styles.featureLabel}>{f.label}</Text>
-              </View>
-            ))}
-          </View>
-        </LinearGradient>
-
-        <View style={[styles.formCard, { paddingBottom: insets.bottom + 40 }]}>
-          <Text style={styles.formTitle}>KÜMESİME HOŞ GELDİN</Text>
-          <Text style={styles.formSub}>Kaydet, Takip Et. Dijital kümesin artık cebinde!</Text>
-
-          <Text style={styles.inputLabel}>E-posta</Text>
-          <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
-            <Ionicons
-              name="mail-outline"
-              size={18}
-              color={emailFocused ? "#2D7A4F" : "#9ca3af"}
-              style={{ marginRight: 10 }}
-            />
-            <TextInput
-              style={styles.inputField}
-              placeholder="ornek@eposta.com"
-              placeholderTextColor="#9ca3af"
-              value={email}
-              onChangeText={(t) => { setEmail(t); setError(""); }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-              returnKeyType="next"
-            />
-          </View>
-
-          <Text style={styles.inputLabel}>Şifre</Text>
-          <View style={[styles.inputWrap, passFocused && styles.inputWrapFocused]}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={18}
-              color={passFocused ? "#2D7A4F" : "#9ca3af"}
-              style={{ marginRight: 10 }}
-            />
-            <TextInput
-              style={[styles.inputField, { flex: 1 }]}
-              placeholder="••••••••"
-              placeholderTextColor="#9ca3af"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setError(""); }}
-              secureTextEntry={!showPassword}
-              onFocus={() => setPassFocused(true)}
-              onBlur={() => setPassFocused(false)}
-              returnKeyType="done"
-              onSubmitEditing={handleLogin}
-            />
-            <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={18}
-                color="#9ca3af"
-              />
-            </Pressable>
-          </View>
-
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-          <Pressable style={styles.forgotBtn} onPress={handleForgotPassword}>
-            <Text style={styles.forgotText}>Şifremi Unuttum</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.loginBtn, !canSubmit && { opacity: 0.5 }]}
-            onPress={handleLogin}
-            disabled={loading || !canSubmit}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
-                <Text style={styles.loginBtnText}>Giriş Yap</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-              </>
-            )}
-          </Pressable>
-
-          <Text style={styles.footerNote}>
-            Giriş yaparak Kullanım Koşulları ve Gizlilik Politikasını kabul etmiş olursunuz.
-          </Text>
         </View>
-      </ScrollView>
+      </LinearGradient>
 
-    </KeyboardAvoidingView>
+      <View style={[styles.formCard, { paddingBottom: insets.bottom + 48 }]}>
+        <Text style={styles.formTitle}>KÜMESİME HOŞ GELDİN</Text>
+        <Text style={styles.formSub}>
+          Google hesabınla giriş yap. Dijital kümesin artık cebinde!
+        </Text>
+
+        {!!error && (
+          <View style={styles.errorBox}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#ef4444" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {/* Google Sign-In Button */}
+        <Pressable
+          style={({ pressed }) => [styles.googleBtn, pressed && styles.googleBtnPressed]}
+          onPress={handleGoogleSignIn}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#374151" size="small" />
+          ) : (
+            <>
+              {/* Google "G" logo */}
+              <View style={styles.googleIconWrap}>
+                <GoogleG />
+              </View>
+              <Text style={styles.googleBtnText}>Google ile Giriş Yap</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Text style={styles.footerNote}>
+          Giriş yaparak Kullanım Koşulları ve Gizlilik Politikasını kabul etmiş olursunuz.
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
+
+// Official Google "G" logo as pure React Native (no SVG library needed)
+function GoogleG() {
+  return (
+    <View style={googleG.container}>
+      <Text style={googleG.text}>G</Text>
+    </View>
+  );
+}
+
+const googleG = StyleSheet.create({
+  container: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 0,
+  },
+  text: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#4285F4",
+    lineHeight: 22,
+  },
+});
 
 const styles = StyleSheet.create({
   heroSection: {
@@ -230,12 +186,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
-  birdDeco: {
-    position: "absolute",
-  },
-  logoWrap: {
-    marginBottom: 18,
-  },
+  birdDeco: { position: "absolute" },
+  logoWrap:  { marginBottom: 18 },
   logoCircle: {
     width: 120,
     height: 120,
@@ -261,14 +213,8 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     letterSpacing: 0.3,
   },
-  featureRow: {
-    flexDirection: "row",
-    gap: 20,
-  },
-  featureItem: {
-    alignItems: "center",
-    gap: 4,
-  },
+  featureRow: { flexDirection: "row", gap: 20 },
+  featureItem: { alignItems: "center", gap: 4 },
   featureLabel: {
     fontSize: 11,
     color: "rgba(255,255,255,0.7)",
@@ -279,7 +225,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 28,
-    paddingTop: 36,
+    paddingTop: 40,
     marginTop: -2,
   },
   formTitle: {
@@ -287,79 +233,74 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111827",
     fontFamily: "Inter_700Bold",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   formSub: {
     fontSize: 14,
     color: "#6b7280",
     fontFamily: "Inter_400Regular",
-    marginBottom: 28,
+    marginBottom: 36,
+    lineHeight: 20,
   },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
-    fontFamily: "Inter_600SemiBold",
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  inputWrap: {
+  errorBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
+    gap: 8,
+    backgroundColor: "#fef2f2",
+    borderRadius: 10,
     paddingHorizontal: 14,
-    paddingVertical: Platform.OS === "ios" ? 14 : 2,
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  inputWrapFocused: {
-    borderColor: "#2D7A4F",
-    backgroundColor: "#F0FAF4",
-  },
-  inputField: {
-    flex: 1,
-    fontSize: 16,
-    color: "#111827",
-    fontFamily: "Inter_400Regular",
+    paddingVertical: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#fecaca",
   },
   errorText: {
     fontSize: 13,
     color: "#ef4444",
-    marginTop: 10,
+    flex: 1,
     fontFamily: "Inter_400Regular",
   },
-  forgotBtn: {
-    alignSelf: "flex-end",
-    paddingVertical: 10,
-    paddingLeft: 10,
-    marginTop: 6,
-  },
-  forgotText: {
-    fontSize: 14,
-    color: "#2D7A4F",
-    fontFamily: "Inter_600SemiBold",
-  },
-  loginBtn: {
-    backgroundColor: "#2D7A4F",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
+  googleBtn: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginTop: 10,
-    shadowColor: "#2D7A4F",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 5,
+    gap: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 15,
+    borderWidth: 1.5,
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 12,
+    minHeight: 54,
   },
-  loginBtnText: {
-    color: "#FFFFFF",
+  googleBtnPressed: {
+    backgroundColor: "#f9fafb",
+    borderColor: "#d1d5db",
+  },
+  googleIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4285F4",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  googleBtnText: {
     fontSize: 16,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
+    fontWeight: "600",
+    color: "#374151",
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.2,
   },
   footerNote: {
     fontSize: 11,
@@ -367,5 +308,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 24,
     lineHeight: 16,
+    fontFamily: "Inter_400Regular",
   },
 });
