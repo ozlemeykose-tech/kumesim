@@ -16,7 +16,10 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.replit.kumesim",
+      "googleServicesFile": "./google-services.json"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
