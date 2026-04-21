@@ -13,12 +13,12 @@ import { Platform } from "react-native";
 
 // kumesim-yeni — production Firebase project
 const firebaseConfig = {
-  apiKey: "AIzaSyAacF7Ax3x-uV2_B79z49N0M9G7G6-zW9lW",
+  apiKey: "AIzaSyAacF7Ax3x-0QSs_dBMEst6MYmP3Qa4fVg",
   authDomain: "kumesim-yeni.firebaseapp.com",
   projectId: "kumesim-yeni",
   storageBucket: "kumesim-yeni.firebasestorage.app",
   messagingSenderId: "480888156704",
-  appId: "1:480888156704:web:9f8e43e49e4d9c7e7b7b7",
+  appId: "1:480888156704:web:0ae47cb65139ab4e9dc245",
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
